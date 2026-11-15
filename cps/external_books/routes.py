@@ -1,7 +1,9 @@
 # Calibre-Web Automated – fork of Calibre-Web
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from flask import Blueprint, abort, flash, redirect, request, url_for
+from io import BytesIO
+
+from flask import Blueprint, abort, flash, redirect, request, send_file, url_for
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import noload
 
@@ -15,6 +17,7 @@ from .covers import artwork_store, cover_limit, remote_cover, uploaded_cover
 from .forms import apply_values, validate_form
 from .models import CONDITIONS, MEDIA_TYPES, ExternalBook, ExternalBookTag
 from .query import filtered_external_books
+from .thumbnails import metadata_thumbnail, valid_cover_url
 
 external_books = Blueprint("external_books", __name__, url_prefix="/books/personal")
 log = logger.create()
@@ -217,3 +220,21 @@ def delete(book_id):
 def cover(book_id):
     book = _get_book(book_id)
     return serve_artwork(artwork_store(), book.cover_filename)
+
+
+@external_books.route("/metadata/cover")
+@user_login_required
+@media_edit_required
+def metadata_cover():
+    """Serve a small, cached thumbnail for a metadata search result cover."""
+    url = request.args.get("url", "").strip()
+    if not valid_cover_url(url):
+        abort(400)
+    thumbnail = metadata_thumbnail(url)
+    if thumbnail is None:
+        return serve_artwork(artwork_store(), None)
+    data, content_type = thumbnail
+    response = send_file(BytesIO(data), mimetype=content_type, conditional=False, max_age=86400)
+    response.headers["Cache-Control"] = "private, max-age=86400"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response

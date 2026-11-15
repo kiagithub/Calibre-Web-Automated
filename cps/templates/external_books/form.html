@@ -15,7 +15,7 @@
   </div>
   {% endif %}
 
-  <section id="metadata-search" class="external-books-metadata-panel" data-search-url="{{ metadata_search_url }}">
+  <section id="metadata-search" class="external-books-metadata-panel" data-search-url="{{ metadata_search_url }}" data-cover-url="{{ url_for('external_books.metadata_cover') }}" data-generic-cover="{{ url_for('static', filename='generic_cover.svg') }}" data-partial-message="{{ _('Some sources are still responding; results may be incomplete.') }}">
     <div class="external-books-section-heading">
       <div><span class="external-books-step">{{ _('Online metadata') }}</span><h2>{{ _('Find book metadata') }}</h2></div>
       <span class="external-books-provider-label">{{ _('Details · identifiers · covers') }}</span>

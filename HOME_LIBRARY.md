@@ -35,6 +35,10 @@ Records can contain:
 
 Manual add/edit/delete and custom JPEG/PNG/WebP cover uploads work without online metadata. Online search reuses CWA's existing enabled book providers, including Google Books and other configured sources. Selecting a result fills the visible form for review before saving; there is no new provider hierarchy or automatic Kindle download/account integration.
 
+Enabled providers run side by side. The search responds shortly after the first sources answer, giving near-simultaneous providers a short grace window, and never waits longer than `CWA_METADATA_SEARCH_TIMEOUT` seconds (default 10). Providers still running after that are left out and the response is marked `X-Metadata-Partial`, so one slow source cannot delay the whole list. Complete result sets are cached in memory for five minutes, scoped to the query, locale, user, and enabled-provider set.
+
+Every result shows a small cover thumbnail beside its details. Thumbnails load lazily through a bounded server-side route, use the same Advocate/local-address policy and image checks as saved covers, are downscaled to thumbnail size, and are cached in memory. Applying metadata still records the provider's full cover URL; the thumbnail is only a preview.
+
 Metadata updates preserve the owned-copy fields, media type, personal tags, location, condition, acquisition details, rating, and notes. Provider tags are suggestions rather than silent replacements.
 
 Records and ratings are shared across library users, matching the movie collection. Viewing follows the normal login/anonymous policy; add/edit and metadata changes require edit permission, deletion requires delete permission, and writes use CSRF protection. Upload permission is not required for a metadata-only record.
@@ -46,6 +50,7 @@ Records and ratings are shared across library users, matching the movie collecti
 - Movie and book artwork share bounded image validation, local atomic storage, safe response handling, and upload/download limits.
 - New artwork is staged before the database commit; replaced artwork is removed only after a successful commit. Failed saves roll back and discard newly staged files.
 - TMDB keeps its HTTPS image-host allowlist. Other provider covers use CWA's Advocate/local-address policy, reject redirects, enforce declared and streamed size limits, close responses, and validate image signatures.
+- Metadata-search thumbnails accept only HTTP(S) image URLs on standard ports, require edit permission, reuse the same bounded downloader, fall back to the local generic cover on any failure, and are capped at 256 cached images of at most 256 KiB each.
 - Movie poster downloads occur before the import write transaction, avoiding network waits while holding a SQLite write transaction.
 - Hardcover authorization headers are copied per request rather than mutated on a shared class, preventing concurrent users from overwriting one another's request credentials.
 
@@ -168,6 +173,8 @@ Feature-specific coverage lives in:
 
 - `tests/unit/test_movie_library.py` and `test_media.py`
 - `tests/unit/test_external_book_models.py`, `test_external_book_forms.py`, `test_external_book_routes.py`, and `test_external_book_ui.py`
+- `tests/unit/test_metadata_search.py` covers provider deadline handling and result caching
+- `tests/unit/test_external_book_thumbnails.py` covers thumbnail URL policy, resizing fallback, caching, and failures
 - `tests/unit/test_catalog_read_models.py`, `test_catalog_service.py`, and `test_catalog_routes.py`
 - `tests/unit/test_book_card_accessibility.py`, `test_jinjia_filters.py`, and `test_route_auth.py`
 - `tests/unit/test_env_example.py` and `test_hardcover_headers.py`

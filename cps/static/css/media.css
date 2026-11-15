@@ -662,6 +662,24 @@
   min-width: 0;
 }
 
+.external-books-metadata-result {
+  align-items: flex-start;
+}
+
+.external-books-metadata-result-copy {
+  flex: 1 1 auto;
+}
+
+.external-books-metadata-result-cover {
+  flex: 0 0 auto;
+  width: 60px;
+  height: 90px;
+  border: 1px solid var(--media-border);
+  border-radius: 6px;
+  background: var(--media-surface-soft);
+  object-fit: cover;
+}
+
 .movie-metadata-result-title,
 .external-books-metadata-result-title {
   margin: 0 0 5px;
@@ -1116,10 +1134,19 @@ body:not(.blur) .external-books-page {
     display: none;
   }
 
-  .movie-metadata-result,
-  .external-books-metadata-result {
+  .movie-metadata-result {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .external-books-metadata-result {
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .external-books-metadata-result > .btn {
+    flex: 1 1 100%;
   }
 
   .media-form-grid,

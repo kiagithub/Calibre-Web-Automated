@@ -76,6 +76,8 @@ def test_external_book_form_contains_all_fields_and_separate_forms():
     assert manual_end < delete_start
     assert 'role="status" aria-live="polite"' in template
     assert 'class="external-books-metadata-results-heading" tabindex="-1"' in template
+    assert 'data-cover-url=' in template
+    assert 'data-generic-cover=' in template
 
 
 def test_external_book_metadata_js_uses_safe_dom_and_accessible_focus():
@@ -95,3 +97,14 @@ def test_external_book_metadata_js_uses_safe_dom_and_accessible_focus():
     assert 'return /^https?:\\/\\//i.test(url) ? url : "";' in script
     assert 'setField("metadata_selected", "1")' in script
     assert script.startswith("(function ()")
+
+
+def test_external_book_metadata_results_show_lazy_cover_thumbnails():
+    script = (REPO_ROOT / "cps" / "static" / "js" / "external_books.js").read_text(encoding="utf-8")
+
+    assert 'panel.dataset.coverUrl + "?url=" + encodeURIComponent(cover)' in script
+    assert 'element("img", "external-books-metadata-result-cover")' in script
+    assert 'cover.loading = "lazy"' in script
+    assert 'cover.decoding = "async"' in script
+    assert 'response.headers.get("X-Metadata-Partial") === "true"' in script
+    assert ".innerHTML" not in script

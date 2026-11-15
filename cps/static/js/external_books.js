@@ -48,6 +48,12 @@
     return /^https?:\/\//i.test(url) ? url : "";
   }
 
+  function coverSource(panel, book) {
+    var cover = remoteCover(book.cover);
+    if (!cover || !panel.dataset.coverUrl) return panel.dataset.genericCover || "";
+    return panel.dataset.coverUrl + "?url=" + encodeURIComponent(cover);
+  }
+
   function populateForm(book) {
     var identifiers = book.identifiers || {};
     setField("title", book.title);
@@ -70,10 +76,26 @@
     setField("metadata_selected", "1");
   }
 
-  function renderResult(book, status) {
+  function renderResult(book, status, panel) {
     var card = element("article", "external-books-metadata-result");
     var copy = element("div", "external-books-metadata-result-copy");
     var source = book.source || {};
+
+    var cover = element("img", "external-books-metadata-result-cover");
+    cover.src = coverSource(panel, book);
+    cover.alt = "";
+    cover.loading = "lazy";
+    cover.decoding = "async";
+    cover.width = 60;
+    cover.height = 90;
+    cover.addEventListener("error", function () {
+      var fallback = panel.dataset.genericCover || "";
+      if (fallback && cover.getAttribute("src") !== fallback && cover.dataset.fallback !== "true") {
+        cover.dataset.fallback = "true";
+        cover.src = fallback;
+      }
+    });
+    card.appendChild(cover);
 
     copy.appendChild(element("h4", "external-books-metadata-result-title", book.title || "Untitled metadata result"));
     if (listValue(book.authors).length) {
@@ -144,16 +166,21 @@
             throw new Error(data && data.error ? data.error : "Metadata search failed.");
           }
           if (!Array.isArray(data)) throw new Error("Metadata search returned an invalid response.");
-          return data;
+          return {books: data, partial: response.headers.get("X-Metadata-Partial") === "true"};
         });
-      }).then(function (books) {
+      }).then(function (result) {
+        var books = result.books;
+        var partialMessage = panel.dataset.partialMessage || "Some sources are still responding; results may be incomplete.";
         if (!books.length) {
           status.textContent = "No matches found. Try another title, author, or identifier.";
+          if (result.partial) status.textContent += " " + partialMessage;
         } else {
           books.forEach(function (book) {
-            resultList.appendChild(renderResult(book, status));
+            resultList.appendChild(renderResult(book, status, panel));
           });
-          status.textContent = books.length === 1 ? "1 metadata result found." : books.length + " metadata results found.";
+          var message = books.length === 1 ? "1 metadata result found." : books.length + " metadata results found.";
+          if (result.partial) message += " " + partialMessage;
+          status.textContent = message;
         }
         resultsHeading.focus();
       }).catch(function (error) {

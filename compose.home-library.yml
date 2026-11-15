@@ -13,6 +13,7 @@ services:
       TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:-}
       TMDB_LANGUAGE: ${TMDB_LANGUAGE:-en-US}
       NETWORK_SHARE_MODE: ${NETWORK_SHARE_MODE:-false}
+      CWA_METADATA_SEARCH_TIMEOUT: ${CWA_METADATA_SEARCH_TIMEOUT:-10}
     volumes:
       - ./data/config:/config
       - ./data/ingest:/cwa-book-ingest

@@ -1,7 +1,6 @@
 # Calibre-Web Automated – fork of Calibre-Web
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from datetime import datetime
 from io import BytesIO
 
 import pytest
@@ -11,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from cps import db, ub, usermanagement
-from cps.external_books import covers, routes
+from cps.external_books import covers, routes, thumbnails
 from cps.external_books.models import ExternalBook
 from cps.jinjia import jinjia
 from cps.media import ImageDownloadError
@@ -186,6 +185,65 @@ class TestExternalBookRoutes:
         assert response.status_code == 302
         book = session.query(ExternalBook).one()
         assert book.cover_filename == ""
+
+    def test_metadata_cover_serves_and_caches_small_thumbnail(self, external_app, monkeypatch):
+        app, _session, _calibre, _user, _tmp_path = external_app
+        calls = []
+
+        def fake_download(url):
+            calls.append(url)
+            return JPEG, "jpg"
+
+        thumbnails.clear_thumbnail_cache()
+        monkeypatch.setattr(thumbnails, "WandImage", None)
+        monkeypatch.setattr(thumbnails, "download_cover", fake_download)
+
+        client = app.test_client()
+        url = "https://example.test/cover.jpg"
+        first = client.get("/books/personal/metadata/cover", query_string={"url": url})
+        second = client.get("/books/personal/metadata/cover", query_string={"url": url})
+
+        assert first.status_code == 200
+        assert first.data == JPEG
+        assert first.mimetype == "image/jpeg"
+        assert first.headers["Cache-Control"] == "private, max-age=86400"
+        assert second.data == JPEG
+        assert calls == [url]
+        thumbnails.clear_thumbnail_cache()
+
+    def test_metadata_cover_rejects_invalid_url_and_requires_edit_permission(
+        self, external_app, monkeypatch
+    ):
+        app, _session, _calibre, user, _tmp_path = external_app
+        client = app.test_client()
+
+        assert client.get(
+            "/books/personal/metadata/cover", query_string={"url": "javascript:alert(1)"}
+        ).status_code == 400
+
+        user.edit = False
+        assert client.get(
+            "/books/personal/metadata/cover", query_string={"url": "https://example.test/cover.jpg"}
+        ).status_code == 403
+
+    def test_metadata_cover_falls_back_to_generic_cover_on_download_error(
+        self, external_app, monkeypatch
+    ):
+        app, _session, _calibre, _user, _tmp_path = external_app
+
+        def fail_download(_url):
+            raise ImageDownloadError("Unavailable")
+
+        thumbnails.clear_thumbnail_cache()
+        monkeypatch.setattr(thumbnails, "download_cover", fail_download)
+
+        response = app.test_client().get(
+            "/books/personal/metadata/cover", query_string={"url": "https://example.test/cover.jpg"}
+        )
+
+        assert response.status_code == 200
+        assert b"<svg" in response.data
+        thumbnails.clear_thumbnail_cache()
 
     def test_edit_and_delete_permissions_are_enforced(self, external_app):
         app, session, _calibre, user, _tmp_path = external_app
