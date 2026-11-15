@@ -1,0 +1,187 @@
+{% extends "layout.html" %}
+{% block body %}
+<main class="external-books-page external-books-form-page" aria-labelledby="external-book-form-heading">
+  <a class="external-books-back-link" href="{{ url_for('external_books.detail', book_id=book.id) if book else url_for('external_books.index') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> {{ _('Back to %(title)s', title=book.title) if book else _('Back to external books') }}</a>
+  <header class="external-books-form-header">
+    <span class="external-books-eyebrow"><span class="glyphicon glyphicon-book" aria-hidden="true"></span> {{ _('External book collection') }}</span>
+    <h1 id="external-book-form-heading">{{ _('Edit %(title)s', title=book.title) if book else _('Add a book') }}</h1>
+    <p>{{ _('Update the metadata or details of your copy.') if book else _('Search online metadata for a quick start, or enter the details yourself.') }}</p>
+  </header>
+
+  {% if errors %}
+  <div class="alert alert-danger" role="alert">
+    <strong>{{ _('Please check the following:') }}</strong>
+    <ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <section id="metadata-search" class="external-books-metadata-panel" data-search-url="{{ metadata_search_url }}">
+    <div class="external-books-section-heading">
+      <div><span class="external-books-step">{{ _('Online metadata') }}</span><h2>{{ _('Find book metadata') }}</h2></div>
+      <span class="external-books-provider-label">{{ _('Details · identifiers · covers') }}</span>
+    </div>
+    <form class="external-books-metadata-search-form" novalidate>
+      <div class="form-group">
+        <label for="metadata-query">{{ _('Title, author, or identifier') }}</label>
+        <input class="form-control" id="metadata-query" name="query" type="search" maxlength="200" value="{{ form.get('title', book.title if book else '') }}" required>
+      </div>
+      <button class="btn btn-primary" type="submit"><span class="glyphicon glyphicon-search" aria-hidden="true"></span> {{ _('Search metadata') }}</button>
+    </form>
+    <p class="external-books-metadata-status" role="status" aria-live="polite"></p>
+    <div class="external-books-metadata-results">
+      <h3 id="metadata-results-heading" class="external-books-metadata-results-heading" tabindex="-1">{{ _('Search results') }}</h3>
+      <div class="external-books-metadata-result-list" aria-labelledby="metadata-results-heading"></div>
+    </div>
+  </section>
+
+  <form method="post" enctype="multipart/form-data" class="external-books-edit-form" action="{{ url_for('external_books.edit', book_id=book.id) if book else url_for('external_books.new') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" id="metadata_provider" name="metadata_provider" value="{{ form.get('metadata_provider', book.metadata_provider if book else '') }}">
+    <input type="hidden" id="metadata_id" name="metadata_id" value="{{ form.get('metadata_id', book.metadata_id if book else '') }}">
+    <input type="hidden" id="metadata_url" name="metadata_url" value="{{ form.get('metadata_url', book.metadata_url if book else '') }}">
+    <input type="hidden" id="metadata_selected" name="metadata_selected" value="{{ form.get('metadata_selected', '') }}">
+    <input type="hidden" id="cover_url" name="cover_url" value="{{ form.get('cover_url', '') }}">
+
+    <section class="external-books-form-section">
+      <div class="external-books-section-heading"><div><span class="external-books-step">{{ _('Book details') }}</span><h2>{{ _('The book') }}</h2></div></div>
+      <div class="external-books-form-grid">
+        <div class="form-group external-books-field-wide">
+          <label for="title">{{ _('Title') }} <span aria-hidden="true">*</span></label>
+          <input class="form-control" id="title" name="title" required maxlength="300" value="{{ form.get('title', book.title if book else '') }}">
+        </div>
+        <div class="form-group external-books-field-wide">
+          <label for="authors">{{ _('Authors') }} <small>{{ _('Separate authors with &') }}</small></label>
+          <input class="form-control" id="authors" name="authors" maxlength="5000" placeholder="{{ _('Ursula K. Le Guin & Margaret Atwood') }}" value="{{ form.get('authors', book.authors|join(' & ') if book else '') }}">
+        </div>
+        <div class="form-group external-books-field-full">
+          <label for="description">{{ _('Description') }}</label>
+          <textarea class="form-control" id="description" name="description" rows="6" maxlength="20000">{{ form.get('description', book.description if book else '') }}</textarea>
+        </div>
+        <div class="form-group">
+          <label for="publisher">{{ _('Publisher') }}</label>
+          <input class="form-control" id="publisher" name="publisher" maxlength="300" value="{{ form.get('publisher', book.publisher if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="published_date">{{ _('Publication date') }} <small>{{ _('YYYY, YYYY-MM, or YYYY-MM-DD') }}</small></label>
+          <input class="form-control" id="published_date" name="published_date" maxlength="10" placeholder="YYYY-MM-DD" value="{{ form.get('published_date', book.published_date if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="series">{{ _('Series') }}</label>
+          <input class="form-control" id="series" name="series" maxlength="300" value="{{ form.get('series', book.series if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="series_index">{{ _('Series index') }}</label>
+          <input class="form-control" id="series_index" name="series_index" maxlength="20" value="{{ form.get('series_index', book.series_index if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="languages">{{ _('Languages') }} <small>{{ _('Comma separated') }}</small></label>
+          <input class="form-control" id="languages" name="languages" maxlength="500" placeholder="{{ _('English, French') }}" value="{{ form.get('languages', book.languages|join(', ') if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="page_count">{{ _('Page count') }}</label>
+          <input class="form-control" id="page_count" name="page_count" type="number" min="1" max="50000" value="{{ form.get('page_count', book.page_count if book and book.page_count is not none else '') }}">
+        </div>
+        <div class="form-group external-books-field-full">
+          <label for="tags">{{ _('Tags') }} <small>{{ _('Comma separated') }}</small></label>
+          <input class="form-control" id="tags" name="tags" maxlength="5000" placeholder="{{ _('Favorites, Book club') }}" value="{{ form.get('tags', book.tag_names|join(', ') if book else '') }}">
+          <p class="help-block">{{ _('Your tags are not changed when you apply online metadata.') }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="external-books-form-section external-books-ownership-fields">
+      <div class="external-books-section-heading"><div><span class="external-books-step">{{ _('Your collection') }}</span><h2>{{ _('The owned copy') }}</h2></div><span class="external-books-provider-label">{{ _('Kept separate during metadata refreshes') }}</span></div>
+      <div class="external-books-form-grid">
+        <div class="form-group">
+          <label for="media_type">{{ _('Book type') }} <span aria-hidden="true">*</span></label>
+          {% set selected_type = form.get('media_type', book.media_type if book else 'physical') %}
+          <select class="form-control" id="media_type" name="media_type" required>
+            {% for value, label in media_types %}<option value="{{ value }}"{% if selected_type == value %} selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="binding">{{ _('Binding') }}</label>
+          <input class="form-control" id="binding" name="binding" maxlength="40" placeholder="{{ _('Hardcover, paperback…') }}" value="{{ form.get('binding', book.binding if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="edition">{{ _('Edition') }}</label>
+          <input class="form-control" id="edition" name="edition" maxlength="200" value="{{ form.get('edition', book.edition if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="location">{{ _('Shelf / location') }}</label>
+          <input class="form-control" id="location" name="location" maxlength="200" placeholder="{{ _('Living room · Shelf 2') }}" value="{{ form.get('location', book.location if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="condition">{{ _('Condition') }}</label>
+          {% set selected_condition = form.get('condition', book.condition if book else '') %}
+          <select class="form-control" id="condition" name="condition">
+            <option value="">{{ _('Not specified') }}</option>
+            {% for condition in conditions %}<option value="{{ condition }}"{% if selected_condition == condition %} selected{% endif %}>{{ _(condition) }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="date_acquired">{{ _('Date acquired') }}</label>
+          <input class="form-control" id="date_acquired" name="date_acquired" type="date" value="{{ form.get('date_acquired', book.date_acquired if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="personal_rating">{{ _('My rating') }} <small>{{ _('0–10') }}</small></label>
+          <input class="form-control" id="personal_rating" name="personal_rating" type="number" min="0" max="10" value="{{ form.get('personal_rating', book.personal_rating if book and book.personal_rating is not none else '') }}">
+        </div>
+        <div class="form-group external-books-field-full">
+          <label for="notes">{{ _('My notes') }}</label>
+          <textarea class="form-control" id="notes" name="notes" rows="4" maxlength="10000" placeholder="{{ _('Signed copy, loaned to a friend, reading notes…') }}">{{ form.get('notes', book.notes if book else '') }}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="external-books-form-section">
+      <div class="external-books-section-heading"><div><span class="external-books-step">{{ _('Identifiers') }}</span><h2>{{ _('Edition identifiers') }}</h2></div></div>
+      <div class="external-books-form-grid">
+        <div class="form-group">
+          <label for="isbn_10">{{ _('ISBN-10') }}</label>
+          <input class="form-control" id="isbn_10" name="isbn_10" maxlength="20" value="{{ form.get('isbn_10', book.isbn_10 if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="isbn_13">{{ _('ISBN-13') }}</label>
+          <input class="form-control" id="isbn_13" name="isbn_13" maxlength="20" value="{{ form.get('isbn_13', book.isbn_13 if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="asin">{{ _('ASIN') }}</label>
+          <input class="form-control" id="asin" name="asin" maxlength="20" value="{{ form.get('asin', book.asin if book else '') }}">
+        </div>
+      </div>
+    </section>
+
+    <section class="external-books-form-section external-books-cover-upload">
+      <div class="external-books-section-heading"><div><span class="external-books-step">{{ _('Artwork') }}</span><h2>{{ _('Cover') }}</h2></div></div>
+      <div class="external-books-cover-upload-content">
+        <img src="{{ url_for('external_books.cover', book_id=book.id) if book else url_for('static', filename='generic_cover.svg') }}" alt="{{ _('Current cover') }}" class="external-books-form-cover-preview" width="200" height="300">
+        <div>
+          <div class="form-group">
+            <label for="cover">{{ _('Upload a custom cover') }}</label>
+            <input class="form-control" id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp">
+            <p class="help-block">{{ _('JPEG, PNG, or WebP. An uploaded cover takes precedence over a metadata cover.') }}</p>
+          </div>
+          {% if book %}<label class="external-books-remove-cover"><input type="checkbox" id="remove_cover" name="remove_cover"{% if form.get('remove_cover') == 'on' %} checked{% endif %}> {{ _('Remove the current cover') }}</label>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    <div class="external-books-form-actions">
+      <button class="btn btn-primary btn-lg" type="submit"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> {{ _('Save changes') if book else _('Add book') }}</button>
+      <a class="btn btn-default btn-lg" href="{{ url_for('external_books.detail', book_id=book.id) if book else url_for('external_books.index') }}">{{ _('Cancel') }}</a>
+    </div>
+  </form>
+
+  {% if book and can_delete_media %}
+  <section class="external-books-danger-zone">
+    <div><h2>{{ _('Remove this book') }}</h2><p>{{ _('Deletes this collection entry and its cached cover. Your Calibre library is not affected.') }}</p></div>
+    <form method="post" action="{{ url_for('external_books.delete', book_id=book.id) }}" data-confirm="{{ _('Delete %(title)s from your external book library? This cannot be undone.', title=book.title) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-danger" type="submit"><span class="glyphicon glyphicon-trash" aria-hidden="true"></span> {{ _('Delete book') }}</button>
+    </form>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}
+{% block js %}<script src="{{ url_for('static', filename='js/external_books.js') }}"></script>{% endblock %}

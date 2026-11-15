@@ -45,3 +45,82 @@ body.modal-open #remove-from-shelves + .tags {
 #exclude_tag + .btn-group .dropdown-menu {
     max-width: 40vw;
 }
+
+/* Compact, keyboard-native library navigation groups. */
+.navigation .nav-group > details {
+    margin: 0;
+}
+
+.navigation .nav-group summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.navigation .nav-group summary::-webkit-details-marker {
+    display: none;
+}
+
+.navigation .nav-group summary::after {
+    content: "▸";
+    margin-left: 0;
+    transition: transform .15s ease;
+}
+
+.navigation .nav-group details[open] > summary::after {
+    transform: rotate(90deg);
+}
+
+.navigation .nav-group summary:hover,
+.navigation .nav-group summary:focus-visible,
+.navigation .nav-group summary.active {
+    background: rgba(127, 127, 127, .12);
+}
+
+.navigation .nav-group summary:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.navigation .nav-group summary .glyphicon {
+    top: 0;
+}
+
+.navigation .nav-group-count {
+    margin-left: auto;
+    color: inherit;
+    font-size: 12px;
+    opacity: .7;
+}
+
+.navigation .nav-group details > ul {
+    margin: 2px 0 8px 12px;
+}
+
+@media (max-width: 767px) {
+    .navigation .nav-group summary {
+        min-height: 44px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .navigation .nav-group summary::after {
+        transition: none;
+    }
+}
+
+/* Never remove keyboard focus without a visible replacement. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+    outline: 2px solid var(--color-secondary, #cc7b19);
+    outline-offset: 3px;
+}

@@ -9,9 +9,22 @@ from urllib.parse import urlparse
 
 import requests
 
+from ..media.images import (
+    ImageDownloadError,
+    ImageRedirectError,
+    ImageTooLargeError,
+    InvalidImageError,
+    download_image,
+    image_type,  # Compatibility export for existing callers/tests.
+)
+
 API_ROOT = "https://api.themoviedb.org/3"
 POSTER_ROOT = "https://image.tmdb.org/t/p/w500"
 MAX_POSTER_BYTES = 8 * 1024 * 1024
+PLACEHOLDER_CREDENTIALS = {
+    "your_tmdb_read_access_token_here", "your_tmdb_api_key_here",
+    "your_token_here", "your_v3_key_here",
+}
 
 
 class MovieMetadataError(Exception):
@@ -29,24 +42,18 @@ def _poster_url(path):
     return ""
 
 
-def image_type(data):
-    """Return a safe extension for supported image bytes, or None."""
-    if data.startswith(b"\xff\xd8\xff"):
-        return "jpg"
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "png"
-    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "webp"
-    return None
+def _credential(value):
+    value = value.strip()
+    return "" if value in PLACEHOLDER_CREDENTIALS else value
 
 
 class TMDBClient:
     def __init__(self, api_key=None, read_access_token=None, session=None, language=None):
-        self.api_key = (api_key if api_key is not None else os.getenv("TMDB_API_KEY", "")).strip()
-        self.read_access_token = (
+        self.api_key = _credential(api_key if api_key is not None else os.getenv("TMDB_API_KEY", ""))
+        self.read_access_token = _credential(
             read_access_token if read_access_token is not None
             else os.getenv("TMDB_READ_ACCESS_TOKEN", "")
-        ).strip()
+        )
         self.language = language or os.getenv("TMDB_LANGUAGE", "en-US")
         self.http = session or requests.Session()
         self.http.headers.update({
@@ -169,30 +176,29 @@ class TMDBClient:
 
     def download_poster(self, url):
         """Download a TMDB poster with host, size, and image-format checks."""
-        parsed = urlparse(_text(url))
-        if parsed.scheme != "https" or parsed.hostname != "image.tmdb.org" or not parsed.path.startswith("/t/p/"):
+        if not self._trusted_poster_url(url):
             raise MovieMetadataError("The poster URL is not a trusted TMDB image URL.")
         if not self.configured:
             raise MovieMetadataError("TMDB is not configured.")
         try:
-            response = self.http.get(_text(url), stream=True, timeout=(5, 20), allow_redirects=False)
-            if 300 <= response.status < 400:
-                raise MovieMetadataError("TMDB poster redirects are not followed.")
-            response.raise_for_status()
-            chunks = []
-            size = 0
-            for chunk in response.iter_content(64 * 1024):
-                size += len(chunk)
-                if size > MAX_POSTER_BYTES:
-                    raise MovieMetadataError("The poster exceeds the 8 MB size limit.")
-                chunks.append(chunk)
-        except requests.RequestException as exc:
-            raise MovieMetadataError("The movie metadata was saved, but its poster could not be downloaded.") from exc
-        finally:
-            if "response" in locals():
-                response.close()
-        data = b"".join(chunks)
-        extension = image_type(data)
-        if not extension:
-            raise MovieMetadataError("TMDB returned an unsupported poster image.")
-        return data, extension
+            downloaded = download_image(
+                url, max_bytes=MAX_POSTER_BYTES, session=self.http, timeout=(5, 20),
+                url_validator=self._trusted_poster_url,
+            )
+            return downloaded.data, downloaded.extension
+        except ImageRedirectError as exc:
+            raise MovieMetadataError("TMDB poster redirects are not followed.") from exc
+        except ImageTooLargeError as exc:
+            raise MovieMetadataError("The poster exceeds the 8 MB size limit.") from exc
+        except InvalidImageError as exc:
+            raise MovieMetadataError("TMDB returned an unsupported poster image.") from exc
+        except ImageDownloadError as exc:
+            raise MovieMetadataError(
+                "The movie metadata was saved, but its poster could not be downloaded."
+            ) from exc
+
+    @staticmethod
+    def _trusted_poster_url(url):
+        parsed = urlparse(_text(url))
+        return (parsed.scheme == "https" and parsed.hostname == "image.tmdb.org"
+                and parsed.path.startswith("/t/p/"))

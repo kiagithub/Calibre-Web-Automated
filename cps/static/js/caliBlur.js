@@ -816,442 +816,238 @@ function showPageFlashMessage(message, type) {
         '</div>');
 }
 
-// Handle clicks on book cover :before pseudo-elements for direct reading
+// Native, keyboard- and touch-accessible book quick actions
 $(function() {
-    function initDirectReadingHandler() {
-        // Remove any existing handlers first
-        $('.book-cover-link').off('click.directReading mousemove.directReading mouseleave.directReading');
-        $('.read-toggle-btn, .edit-metadata-btn, .send-ereader-btn').off('click.quickActions');
-        
-        // Check if device supports hover (not a touch device)
-        var supportsHover = window.matchMedia('(hover: hover)').matches;
-        var isDesktop = $(window).width() >= 768;
-        
-        // Only enable direct reading functionality on devices that support hover and are desktop sized
-        if (supportsHover && isDesktop) {
-            // Add quick action buttons to each book cover
-            $('.book-cover-link').each(function() {
-                var $link = $(this);
-                
-                // Add read status toggle button (only if it doesn't exist)
-                if ($link.find('.read-toggle-btn').length === 0) {
-                    var $readToggle = $('<div class="read-toggle-btn" title="Toggle Read Status"><span class="glyphicon glyphicon-eye-open"></span></div>');
-                    $link.append($readToggle);
-                }
-                
-                // Add edit metadata button (only if user has edit rights and button doesn't exist)
-                if (window.cwaUserData && window.cwaUserData.canEditBooks && $link.find('.edit-metadata-btn').length === 0) {
-                    var $editBtn = $('<div class="edit-metadata-btn" title="Edit Metadata"><span class="glyphicon glyphicon-pencil"></span></div>');
-                    $link.append($editBtn);
-                }
-                
-                // Add send to eReader button (only if it doesn't exist)
-                if ($link.find('.send-ereader-btn').length === 0) {
-                    var $sendBtn = $('<div class="send-ereader-btn" title="Send to eReader"><span class="glyphicon glyphicon-send"></span></div>');
-                    $link.append($sendBtn);
-                }
-            });
-            
-            // Add direct click handlers for the action buttons
-            $('.read-toggle-btn').on('click.quickActions', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var $link = $(this).closest('.book-cover-link');
-                handleReadStatusToggle($link);
-            });
-            
-            $('.edit-metadata-btn').on('click.quickActions', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var $link = $(this).closest('.book-cover-link');
-                handleEditMetadata($link);
-            });
-            
-            $('.send-ereader-btn').on('click.quickActions', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var $link = $(this).closest('.book-cover-link');
-                handleSendToEReader($link);
-            });
-            
-            $('.book-cover-link').on('mousemove.directReading', function(e) {
-                var $link = $(this);
-                
-                // Calculate if mouse is over any of the action areas
-                var linkOffset = $link.offset();
-                var mouseX = e.pageX - linkOffset.left;
-                var mouseY = e.pageY - linkOffset.top;
-                
-                var linkWidth = $link.outerWidth();
-                var linkHeight = $link.outerHeight();
-                
-                // Define the action areas
-                var actionSize = 35;
-                var margin = 8;
-                
-                // Center read icon (50px circle on desktop, 40px on smaller screens)
-                var readIconSize = ($(window).width() >= 768) ? 50 : 40;
-                var centerX = linkWidth / 2;
-                var centerY = linkHeight / 2;
-                var readIconRadius = readIconSize / 2;
-                
-                // Read toggle area (bottom-left)
-                var readToggleX = margin + (actionSize / 2);
-                var readToggleY = linkHeight - margin - (actionSize / 2);
-                var readToggleRadius = actionSize / 2;
-                
-                // Send to eReader area (bottom-right)
-                var sendEReaderX = linkWidth - margin - (actionSize / 2);
-                var sendEReaderY = linkHeight - margin - (actionSize / 2);
-                var sendEReaderRadius = actionSize / 2;
-                
-                // Edit metadata button (center-bottom)
-                var editMetadataX = linkWidth / 2;
-                var editMetadataY = linkHeight - margin - (actionSize / 2);
-                var editMetadataRadius = actionSize / 2;
-                
-                // Calculate distances
-                var distanceFromReadIcon = Math.sqrt(
-                    Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2)
-                );
-                var distanceFromReadToggle = Math.sqrt(
-                    Math.pow(mouseX - readToggleX, 2) + Math.pow(mouseY - readToggleY, 2)
-                );
-                var distanceFromEditMetadata = Math.sqrt(
-                    Math.pow(mouseX - editMetadataX, 2) + Math.pow(mouseY - editMetadataY, 2)
-                );
-                var distanceFromSendEReader = Math.sqrt(
-                    Math.pow(mouseX - sendEReaderX, 2) + Math.pow(mouseY - sendEReaderY, 2)
-                );
-                
-                // Reset all hover states
-                $link.removeClass('hovering-read-icon');
-                $link.find('.read-toggle-btn').removeClass('hovering');
-                $link.find('.edit-metadata-btn').removeClass('hovering');
-                $link.find('.send-ereader-btn').removeClass('hovering');
-                
-                // Apply hover state based on position
-                if (distanceFromReadIcon <= readIconRadius) {
-                    $link.addClass('hovering-read-icon');
-                } else if (distanceFromReadToggle <= readToggleRadius) {
-                    $link.find('.read-toggle-btn').addClass('hovering');
-                } else if (distanceFromEditMetadata <= editMetadataRadius) {
-                    $link.find('.edit-metadata-btn').addClass('hovering');
-                } else if (distanceFromSendEReader <= sendEReaderRadius) {
-                    $link.find('.send-ereader-btn').addClass('hovering');
-                }
-            });
-            
-            $('.book-cover-link').on('mouseleave.directReading', function() {
-                var $link = $(this);
-                
-                // Remove all hover states
-                $link.removeClass('hovering-read-icon');
-                $link.find('.read-toggle-btn').removeClass('hovering');
-                $link.find('.edit-metadata-btn').removeClass('hovering');
-                $link.find('.send-ereader-btn').removeClass('hovering');
-            });
-            
-            $('.book-cover-link').on('click.directReading', function(e) {
-                var $link = $(this);
-                var $cover = $link.closest('.cover');
-                
-                // Check click position
-                var linkOffset = $link.offset();
-                var clickX = e.pageX - linkOffset.left;
-                var clickY = e.pageY - linkOffset.top;
-                
-                var linkWidth = $link.outerWidth();
-                var linkHeight = $link.outerHeight();
-                
-                // Define the action areas (same as mousemove)
-                var actionSize = 35;
-                var margin = 8;
-                
-                var readIconSize = ($(window).width() >= 768) ? 50 : 40;
-                var centerX = linkWidth / 2;
-                var centerY = linkHeight / 2;
-                var readIconRadius = readIconSize / 2;
-                
-                var readToggleX = margin + (actionSize / 2);
-                var readToggleY = linkHeight - margin - (actionSize / 2);
-                var readToggleRadius = actionSize / 2;
-                
-                var sendEReaderX = linkWidth - margin - (actionSize / 2);
-                var sendEReaderY = linkHeight - margin - (actionSize / 2);
-                var sendEReaderRadius = actionSize / 2;
-                
-                // Edit metadata button (center-bottom)
-                var editMetadataX = linkWidth / 2;
-                var editMetadataY = linkHeight - margin - (actionSize / 2);
-                var editMetadataRadius = actionSize / 2;
-                
-                var distanceFromReadIcon = Math.sqrt(
-                    Math.pow(clickX - centerX, 2) + Math.pow(clickY - centerY, 2)
-                );
-                var distanceFromReadToggle = Math.sqrt(
-                    Math.pow(clickX - readToggleX, 2) + Math.pow(clickY - readToggleY, 2)
-                );
-                var distanceFromEditMetadata = Math.sqrt(
-                    Math.pow(clickX - editMetadataX, 2) + Math.pow(clickY - editMetadataY, 2)
-                );
-                var distanceFromSendEReader = Math.sqrt(
-                    Math.pow(clickX - sendEReaderX, 2) + Math.pow(clickY - sendEReaderY, 2)
-                );
-                
-                // Handle different click areas
-                if (distanceFromReadIcon <= readIconRadius) {
-                    // Direct reading functionality
-                    e.preventDefault();
-                    handleDirectReading($link);
-                } else if (distanceFromReadToggle <= readToggleRadius) {
-                    // Toggle read status
-                    e.preventDefault();
-                    handleReadStatusToggle($link);
-                } else if (distanceFromEditMetadata <= editMetadataRadius) {
-                    // Edit metadata
-                    e.preventDefault();
-                    handleEditMetadata($link);
-                } else if (distanceFromSendEReader <= sendEReaderRadius) {
-                    // Send to eReader
-                    e.preventDefault();
-                    handleSendToEReader($link);
-                }
-                // If click was not on any action area, let the normal link behavior proceed
-            });
+    function actionButton(action, icon, label, pressed) {
+        var $button = $('<button type="button" class="book-quick-action">');
+        $button.addClass(action + '-btn').attr({
+            'aria-label': label,
+            'title': label
+        });
+        if (pressed !== undefined) {
+            $button.attr('aria-pressed', String(pressed));
         }
+        $button.append($('<span aria-hidden="true">').addClass('glyphicon ' + icon));
+        $button.append($('<span class="sr-only">').text(label));
+        return $button;
     }
-    
+
+    function initQuickActions() {
+        $('.book-cover-link').each(function() {
+            var $link = $(this);
+            var $cover = $link.closest('.cover');
+            if (!$cover.length) {
+                return;
+            }
+            var formats = String($link.data('book-formats') || '').trim();
+            if (formats && !$cover.find('.direct-read-btn').length) {
+                $cover.append(actionButton('direct-read', 'glyphicon-play-circle', 'Read book'));
+            }
+            if (!$cover.find('.read-toggle-btn').length) {
+                $cover.append(actionButton(
+                    'read-toggle', 'glyphicon-eye-open', 'Toggle read status',
+                    $link.find('.badge.read').length > 0
+                ));
+            }
+            if (window.cwaUserData && window.cwaUserData.canEditBooks &&
+                    !$cover.find('.edit-metadata-btn').length) {
+                $cover.append(actionButton('edit-metadata', 'glyphicon-pencil', 'Edit metadata'));
+            }
+            if (!$cover.find('.send-ereader-btn').length) {
+                $cover.append(actionButton('send-ereader', 'glyphicon-send', 'Send to eReader'));
+            }
+        });
+    }
+
+    function linkForAction(button) {
+        return $(button).closest('.cover').find('.book-cover-link').first();
+    }
+
+    $(document).off('click.bookQuickActions');
+    $(document).on('click.bookQuickActions', '.direct-read-btn', function(event) {
+        event.preventDefault();
+        handleDirectReading(linkForAction(this));
+    });
+    $(document).on('click.bookQuickActions', '.read-toggle-btn', function(event) {
+        event.preventDefault();
+        handleReadStatusToggle(linkForAction(this));
+    });
+    $(document).on('click.bookQuickActions', '.edit-metadata-btn', function(event) {
+        event.preventDefault();
+        handleEditMetadata(linkForAction(this));
+    });
+    $(document).on('click.bookQuickActions', '.send-ereader-btn', function(event) {
+        event.preventDefault();
+        handleSendToEReader(linkForAction(this));
+    });
+
     function handleDirectReading($link) {
         var bookId = $link.data('book-id');
-        var formatsStr = $link.data('book-formats');
-        
-        if (bookId && formatsStr) {
-            var formats = formatsStr.toLowerCase().split(',').map(function(f) { 
-                return f.trim(); 
-            });
-            
-            var formatPriority = ['epub', 'pdf', 'txt', 'html', 'mobi', 'azw3', 'fb2'];
-            var selectedFormat = null;
-            
-            for (var i = 0; i < formatPriority.length; i++) {
-                if (formats.indexOf(formatPriority[i]) !== -1) {
-                    selectedFormat = formatPriority[i];
-                    break;
-                }
+        var formats = String($link.data('book-formats') || '').toLowerCase().split(',').map(function(format) {
+            return format.trim();
+        }).filter(Boolean);
+        var formatPriority = ['epub', 'pdf', 'txt', 'html', 'mobi', 'azw3', 'fb2'];
+        var selectedFormat = null;
+
+        for (var i = 0; i < formatPriority.length; i++) {
+            if (formats.indexOf(formatPriority[i]) !== -1) {
+                selectedFormat = formatPriority[i];
+                break;
             }
-            
-            if (!selectedFormat && formats.length > 0) {
-                selectedFormat = formats[0];
-            }
-            
-            if (selectedFormat) {
-                window.open(window.scriptRoot + '/read/' + bookId + '/' + selectedFormat, '_blank');
-            } else {
-                window.location.href = $link.attr('href');
-            }
+        }
+        selectedFormat = selectedFormat || formats[0];
+        if (bookId && selectedFormat) {
+            window.open(window.scriptRoot + '/read/' + bookId + '/' + selectedFormat, '_blank', 'noopener');
+        } else {
+            window.location.href = $link.attr('href');
         }
     }
-    
+
     function handleReadStatusToggle($link) {
         var bookId = $link.data('book-id');
-        if (!bookId) {
-            console.error('Book ID not found');
+        var $button = $link.closest('.cover').find('.read-toggle-btn');
+        if (!bookId || $button.hasClass('loading')) {
             return;
         }
-        
-        // Show loading state
-        var $readToggleBtn = $link.find('.read-toggle-btn');
-        $readToggleBtn.addClass('loading');
-        $readToggleBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-refresh');
-        
-        // Find the existing read badge
+        $button.addClass('loading').attr('aria-busy', 'true');
+        $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-refresh');
         var $readBadge = $link.find('.badge.read');
         var isCurrentlyRead = $readBadge.length > 0;
-        
+
         $.ajax({
             url: window.scriptRoot + '/ajax/toggleread/' + bookId,
             type: 'POST',
-            data: {
-                csrf_token: $("input[name='csrf_token']").val()
-            },
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            success: function(response, textStatus, xhr) {
-                console.log('Read status toggle successful');
-                // Handle successful response - empty response means success
-                if (xhr.status === 200) {
-                    // Update the visual read badge immediately
-                    if (isCurrentlyRead) {
-                        // Remove read badge
-                        $readBadge.remove();
-                    } else {
-                        // Add read badge
-                        var $newBadge = $('<span class="badge read glyphicon glyphicon-ok"></span>');
-                        $link.find('.img').append($newBadge);
-                    }
-                    
-                    // Show success state
-                    $readToggleBtn.addClass('success').removeClass('loading');
-                    $readToggleBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-ok');
-                    setTimeout(function() {
-                        $readToggleBtn.removeClass('success');
-                        $readToggleBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-eye-open');
-                    }, 1000);
+            data: {csrf_token: $("input[name='csrf_token']").val()},
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            success: function(_response, _textStatus, xhr) {
+                if (xhr.status !== 200) {
+                    return;
                 }
-            },
-            error: function(xhr, textStatus, errorThrown) {
-                console.error('Error toggling read status:', xhr.responseText || errorThrown);
-                // Show error state
-                $readToggleBtn.addClass('error').removeClass('loading');
-                $readToggleBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-remove');
+                if (isCurrentlyRead) {
+                    $readBadge.remove();
+                } else {
+                    $link.find('.img').append($('<span class="badge read glyphicon glyphicon-ok" aria-hidden="true"></span>'));
+                }
+                $button.attr('aria-pressed', String(!isCurrentlyRead));
+                $button.addClass('success').removeClass('loading').attr('aria-busy', 'false');
+                $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-ok');
                 setTimeout(function() {
-                    $readToggleBtn.removeClass('error');
-                    $readToggleBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-eye-open');
+                    $button.removeClass('success');
+                    $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-eye-open');
+                }, 1000);
+            },
+            error: function(xhr, _textStatus, errorThrown) {
+                console.error('Error toggling read status:', xhr.responseText || errorThrown);
+                $button.addClass('error').removeClass('loading').attr('aria-busy', 'false');
+                $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-remove');
+                setTimeout(function() {
+                    $button.removeClass('error');
+                    $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-eye-open');
                 }, 2000);
-                
-                // Try to show error message if available
                 try {
                     var response = JSON.parse(xhr.responseText);
                     if (response.message) {
                         alert('Error: ' + response.message);
                     }
-                } catch (e) {
-                    // Not JSON, show generic error
+                } catch (error) {
                     alert('Error toggling read status. Please try again.');
                 }
             }
         });
     }
-    
+
     function handleSendToEReader($link) {
         var bookId = $link.data('book-id');
-        var formatsStr = $link.data('book-formats');
-        
+        var formatsStr = String($link.data('book-formats') || '');
         if (!bookId) {
-            console.error('Book ID not found');
             return;
         }
-        
-        if (!formatsStr || formatsStr.length === 0) {
+        if (!formatsStr) {
             alert('No formats available for this book');
             return;
         }
-        
-        // Check if user has email configured
         if (!window.cwaUserData || !window.cwaUserData.primaryEmail) {
             alert('Please configure your eReader email address in your profile settings.');
             return;
         }
-        
-        // Show loading state
-        var $sendBtn = $link.find('.send-ereader-btn');
-        $sendBtn.addClass('loading');
-        $sendBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-refresh');
-        
-        // Get the best format for sending (prefer epub, then pdf, then others)
-        var formats = formatsStr.toLowerCase().split(',').map(function(f) { 
-            return f.trim(); 
-        });
-        
-        var sendFormatPriority = ['epub', 'pdf', 'mobi', 'azw3', 'azw'];
+        var $button = $link.closest('.cover').find('.send-ereader-btn');
+        if ($button.hasClass('loading')) {
+            return;
+        }
+        $button.addClass('loading').attr('aria-busy', 'true');
+        $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-refresh');
+
+        var formats = formatsStr.toLowerCase().split(',').map(function(format) {
+            return format.trim();
+        }).filter(Boolean);
+        var priorities = ['epub', 'pdf', 'mobi', 'azw3', 'azw'];
         var selectedFormat = null;
-        
-        for (var i = 0; i < sendFormatPriority.length; i++) {
-            if (formats.indexOf(sendFormatPriority[i]) !== -1) {
-                selectedFormat = sendFormatPriority[i];
+        for (var i = 0; i < priorities.length; i++) {
+            if (formats.indexOf(priorities[i]) !== -1) {
+                selectedFormat = priorities[i];
                 break;
             }
         }
-        
-        if (!selectedFormat && formats.length > 0) {
-            selectedFormat = formats[0];
-        }
-        
+        selectedFormat = selectedFormat || formats[0];
         if (!selectedFormat) {
+            $button.removeClass('loading').attr('aria-busy', 'false');
             alert('No compatible format found for sending to eReader');
-            $sendBtn.removeClass('loading');
             return;
         }
-        
-        // Use /send_selected endpoint but only send to primary email
+
         $.ajax({
             url: window.scriptRoot + '/send_selected/' + bookId,
             type: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
             data: {
                 'csrf_token': $('input[name="csrf_token"]').val() || '',
                 'selected_emails': window.cwaUserData.primaryEmail,
                 'book_format': selectedFormat.toUpperCase(),
                 'convert': 0
             },
-            success: function(response, textStatus, xhr) {
-                console.log('Send to eReader successful');
-                // Show success state
-                $sendBtn.addClass('success').removeClass('loading');
-                $sendBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-ok');
+            success: function(response) {
+                $button.addClass('success').removeClass('loading').attr('aria-busy', 'false');
+                $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-ok');
                 setTimeout(function() {
-                    $sendBtn.removeClass('success');
-                    $sendBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-send');
+                    $button.removeClass('success');
+                    $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-send');
                 }, 1000);
-                
-                // Show success message if available
                 if (response && response.length > 0 && response[0].message) {
-                    // Use the proper flash notification system
                     showPageFlashMessage(response[0].message, 'success');
                 }
             },
-            error: function(xhr, textStatus, errorThrown) {
+            error: function(xhr, _textStatus, errorThrown) {
                 console.error('Error sending to eReader:', xhr.responseText || errorThrown);
-                // Show error state
-                $sendBtn.addClass('error').removeClass('loading');
-                $sendBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-remove');
+                $button.addClass('error').removeClass('loading').attr('aria-busy', 'false');
+                $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-remove');
                 setTimeout(function() {
-                    $sendBtn.removeClass('error');
-                    $sendBtn.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-send');
+                    $button.removeClass('error');
+                    $button.find('.glyphicon').removeClass().addClass('glyphicon glyphicon-send');
                 }, 2000);
-                
-                // Try to show more specific error message
-                var errorMessage = 'Error sending to eReader. Please check your configuration and ensure you have email addresses set up.';
+                var errorMessage = 'Error sending to eReader. Please check your configuration and email addresses.';
                 try {
                     var response = JSON.parse(xhr.responseText);
                     if (response && response.length > 0 && response[0].message) {
                         errorMessage = response[0].message;
                     }
-                } catch (e) {
-                    // Not JSON, use default message
+                } catch (error) {
+                    // Keep the safe generic error.
                 }
                 alert(errorMessage);
             }
         });
     }
-    
+
     function handleEditMetadata($link) {
         var bookId = $link.data('book-id');
-        
-        if (!bookId) {
-            console.error('No book ID found for edit metadata action');
-            return;
+        if (bookId) {
+            window.location.href = window.scriptRoot + '/admin/book/' + bookId;
         }
-        
-        // Navigate to the edit page in the same tab
-        var editUrl = window.scriptRoot + '/admin/book/' + bookId;
-        window.location.href = editUrl;
     }
-    
-    // Initialize on page load
-    initDirectReadingHandler();
-    
-    // Re-initialize on window resize with debouncing
-    var resizeTimer;
-    $(window).on('resize', function() {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function() {
-            initDirectReadingHandler();
-        }, 250);
+
+    initQuickActions();
+    document.querySelectorAll('.discover .row').forEach(function(row) {
+        new MutationObserver(initQuickActions).observe(row, {childList: true});
     });
 });
 

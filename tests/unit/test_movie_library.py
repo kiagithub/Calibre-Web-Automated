@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -12,6 +13,7 @@ from cps.movie_library.metadata import MovieMetadataError, TMDBClient, image_typ
 from cps.movie_library.models import Movie
 from flask import Flask, g, jsonify, render_template
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 JPEG = b"\xff\xd8\xff" + b"test-image"
@@ -21,12 +23,12 @@ class FakeResponse:
     def __init__(self, payload=None, data=b"", status=200):
         self.payload = payload
         self.data = data
-        self.status = status
+        self.status_code = status
         self.closed = False
 
     def raise_for_status(self):
-        if self.status >= 400:
-            raise metadata.requests.HTTPError(f"HTTP {self.status}")
+        if self.status_code >= 400:
+            raise metadata.requests.HTTPError(f"HTTP {self.status_code}")
 
     def json(self):
         if isinstance(self.payload, Exception):
@@ -59,6 +61,18 @@ class TestTMDBMetadata:
     def test_unconfigured_client_does_not_make_network_request(self):
         http = FakeSession()
         client = TMDBClient(api_key="", read_access_token="", session=http)
+        with pytest.raises(MovieMetadataError, match="not configured"):
+            client.search("Arrival")
+        assert http.calls == []
+
+    def test_example_placeholders_do_not_enable_network_requests(self):
+        http = FakeSession()
+        client = TMDBClient(
+            api_key="your_tmdb_api_key_here",
+            read_access_token="your_tmdb_read_access_token_here",
+            session=http,
+        )
+        assert not client.configured
         with pytest.raises(MovieMetadataError, match="not configured"):
             client.search("Arrival")
         assert http.calls == []
@@ -176,6 +190,9 @@ class FakeUser:
     def role_delete_books(self):
         return self.delete
 
+    def check_visibility(self, visibility):
+        return True
+
 
 @pytest.fixture
 def movie_app(tmp_path, monkeypatch):
@@ -187,6 +204,7 @@ def movie_app(tmp_path, monkeypatch):
     monkeypatch.setattr(routes, "render_title_template", lambda template, **context: jsonify(
         template=template,
         entries=[entry.title for entry in context.get("entries", [])],
+        entry_sources=[entry.source for entry in context.get("entries", [])],
         total=context.get("total"),
     ))
 
@@ -227,6 +245,7 @@ class TestMovieRoutes:
         assert response.get_json()["entries"] == []
         response = client.get("/movies/?q=Arrival")
         assert response.get_json()["entries"] == ["Arrival"]
+        assert response.get_json()["entry_sources"] == ["movie"]
         response = client.get("/movies/?format=DVD")
         assert response.get_json()["entries"] == []
 
@@ -269,6 +288,180 @@ class TestMovieRoutes:
         assert movie.location == "Cabinet 3"
         assert movie.barcode == "123"
         assert movie.media_format == "Blu-ray"
+
+    @pytest.mark.parametrize("field,value", [
+        ("media_format", "Paperback"),
+        ("condition", "Scratched"),
+    ])
+    def test_create_enforces_format_and_condition_membership(self, movie_app, field, value):
+        app, db_session, _ = movie_app
+        data = {"title": "Arrival", "media_format": "Blu-ray", "condition": "Good", field: value}
+        response = app.test_client().post("/movies/new", data=data)
+        assert response.status_code == 400
+        assert db_session.query(Movie).count() == 0
+
+    def test_edit_enforces_format_and_condition_membership(self, movie_app):
+        app, db_session, _ = movie_app
+        movie = Movie(title="Arrival", media_format="Blu-ray", condition="Good")
+        db_session.add(movie)
+        db_session.commit()
+        client = app.test_client()
+        for data in (
+            {"title": "Arrival", "media_format": "Paperback", "condition": "Good"},
+            {"title": "Arrival", "media_format": "Blu-ray", "condition": "Scratched"},
+        ):
+            response = client.post(f"/movies/{movie.id}/edit", data=data)
+            assert response.status_code == 400
+        assert movie.media_format == "Blu-ray"
+        assert movie.condition == "Good"
+
+    def test_import_rejects_invalid_format_before_lookup(self, movie_app, monkeypatch):
+        app, db_session, _ = movie_app
+        client = SimpleNamespace(details=lambda tmdb_id: pytest.fail("lookup should not run"))
+        monkeypatch.setattr(routes, "_client", lambda: client)
+        response = app.test_client().post("/movies/import", data={
+            "tmdb_id": "329865", "media_format": "Paperback",
+        })
+        assert response.status_code == 302
+        assert db_session.query(Movie).count() == 0
+
+    def test_create_commit_failure_removes_staged_poster(self, movie_app, monkeypatch):
+        app, db_session, _ = movie_app
+
+        def fail_commit():
+            raise SQLAlchemyError("commit failed")
+
+        monkeypatch.setattr(db_session, "commit", fail_commit)
+        response = app.test_client().post("/movies/new", data={
+            "title": "Arrival", "media_format": "Blu-ray", "condition": "Good",
+            "poster": (BytesIO(JPEG), "poster.jpg"),
+        }, content_type="multipart/form-data")
+        assert response.status_code == 500
+        assert db_session.query(Movie).count() == 0
+        assert list(Path(routes._cover_directory()).iterdir()) == []
+
+    def test_edit_commit_failure_keeps_old_poster_and_removes_new_file(self, movie_app, monkeypatch):
+        app, db_session, _ = movie_app
+        movie = Movie(title="Arrival", media_format="Blu-ray", condition="Good")
+        db_session.add(movie)
+        db_session.flush()
+        old_filename = routes._cover_store().stage(JPEG, "jpg", f"movie-{movie.id}", max_bytes=1024)
+        movie.poster_filename = old_filename
+        db_session.commit()
+
+        def fail_commit():
+            raise SQLAlchemyError("commit failed")
+
+        monkeypatch.setattr(db_session, "commit", fail_commit)
+        response = app.test_client().post(f"/movies/{movie.id}/edit", data={
+            "title": "Arrival updated", "media_format": "4K UHD", "condition": "New",
+            "poster": (BytesIO(JPEG + b"new"), "poster.jpg"),
+        }, content_type="multipart/form-data")
+        assert response.status_code == 500
+        db_session.expire_all()
+        movie = db_session.query(Movie).one()
+        assert movie.title == "Arrival"
+        assert movie.poster_filename == old_filename
+        assert [path.name for path in Path(routes._cover_directory()).iterdir()] == [old_filename]
+
+    def test_edit_replaces_old_poster_after_one_successful_commit(self, movie_app, monkeypatch):
+        app, db_session, _ = movie_app
+        movie = Movie(title="Arrival", media_format="Blu-ray", condition="Good")
+        db_session.add(movie)
+        db_session.flush()
+        old_filename = routes._cover_store().stage(JPEG, "jpg", f"movie-{movie.id}", max_bytes=1024)
+        movie.poster_filename = old_filename
+        db_session.commit()
+        real_commit = db_session.commit
+        commits = []
+
+        def counted_commit():
+            commits.append(movie.poster_filename)
+            return real_commit()
+
+        monkeypatch.setattr(db_session, "commit", counted_commit)
+        response = app.test_client().post(f"/movies/{movie.id}/edit", data={
+            "title": "Arrival", "media_format": "4K UHD", "condition": "Good",
+            "poster": (BytesIO(JPEG + b"new"), "poster.jpg"),
+        }, content_type="multipart/form-data")
+        assert response.status_code == 302
+        assert len(commits) == 1
+        assert commits[0] != old_filename
+        assert not (Path(routes._cover_directory()) / old_filename).exists()
+        assert (Path(routes._cover_directory()) / movie.poster_filename).read_bytes() == JPEG + b"new"
+
+    def test_delete_commit_failure_keeps_movie_and_poster(self, movie_app, monkeypatch):
+        app, db_session, _ = movie_app
+        movie = Movie(title="Arrival", media_format="Blu-ray")
+        db_session.add(movie)
+        db_session.flush()
+        filename = routes._cover_store().stage(JPEG, "jpg", f"movie-{movie.id}", max_bytes=1024)
+        movie.poster_filename = filename
+        db_session.commit()
+
+        def fail_commit():
+            raise SQLAlchemyError("commit failed")
+
+        monkeypatch.setattr(db_session, "commit", fail_commit)
+        response = app.test_client().post(f"/movies/{movie.id}/delete")
+        assert response.status_code == 302
+        assert db_session.query(Movie).count() == 1
+        assert (Path(routes._cover_directory()) / filename).exists()
+
+    def test_import_stages_poster_and_commits_once(self, movie_app, monkeypatch):
+        app, db_session, _ = movie_app
+        provider = SimpleNamespace(
+            details=lambda tmdb_id: {
+                "tmdb_id": 329865, "title": "Arrival", "poster_url": "https://image.tmdb.org/t/p/w500/poster.jpg",
+            },
+            download_poster=lambda url: (JPEG, "jpg"),
+        )
+        monkeypatch.setattr(routes, "_client", lambda: provider)
+        real_commit = db_session.commit
+        commits = []
+
+        def counted_commit():
+            commits.append(True)
+            return real_commit()
+
+        monkeypatch.setattr(db_session, "commit", counted_commit)
+        response = app.test_client().post("/movies/import", data={
+            "tmdb_id": "329865", "media_format": "Blu-ray", "condition": "Good",
+        })
+        assert response.status_code == 302
+        assert len(commits) == 1
+        movie = db_session.query(Movie).one()
+        assert movie.poster_filename
+        assert (Path(routes._cover_directory()) / movie.poster_filename).read_bytes() == JPEG
+
+    def test_metadata_apply_commit_failure_restores_old_artwork(self, movie_app, monkeypatch):
+        app, db_session, _ = movie_app
+        movie = Movie(title="Old title", media_format="Blu-ray")
+        db_session.add(movie)
+        db_session.flush()
+        old_filename = routes._cover_store().stage(JPEG, "jpg", f"movie-{movie.id}", max_bytes=1024)
+        movie.poster_filename = old_filename
+        db_session.commit()
+        provider = SimpleNamespace(
+            details=lambda tmdb_id: {
+                "tmdb_id": 329865, "title": "New title",
+                "poster_url": "https://image.tmdb.org/t/p/w500/poster.jpg",
+            },
+            download_poster=lambda url: (JPEG + b"new", "jpg"),
+        )
+        monkeypatch.setattr(routes, "_client", lambda: provider)
+
+        def fail_commit():
+            raise SQLAlchemyError("commit failed")
+
+        monkeypatch.setattr(db_session, "commit", fail_commit)
+        response = app.test_client().post(f"/movies/{movie.id}/metadata/apply", data={"tmdb_id": "329865"})
+        assert response.status_code == 302
+        db_session.expire_all()
+        movie = db_session.query(Movie).one()
+        assert movie.title == "Old title"
+        assert movie.poster_filename == old_filename
+        assert [path.name for path in Path(routes._cover_directory()).iterdir()] == [old_filename]
 
     def test_edit_permission_is_enforced(self, movie_app):
         app, _, user = movie_app
@@ -323,7 +516,8 @@ class TestMovieRoutes:
 
         def render(template, **context):
             defaults = {
-                "instance": "Home Library", "simple": True, "accept": [], "sidebar": [],
+                "instance": "Home Library", "simple": True, "accept": [],
+                "sidebar": [{"visibility": 0, "public": False}],
                 "magic_shelf_routes": {"render": False, "create": False},
                 "duplicate_notification": {"count": 0}, "searchterm": "", "bodyClass": "",
             }
@@ -342,3 +536,31 @@ class TestMovieRoutes:
             response = client.get(path)
             assert response.status_code == 200, path
             assert marker in response.data, path
+
+
+@pytest.mark.unit
+def test_movie_templates_use_shared_cards_permissions_and_accessible_results():
+    template_root = Path(routes.__file__).resolve().parents[1] / "templates" / "movies"
+    index = (template_root / "index.html").read_text(encoding="utf-8")
+    form = (template_root / "form.html").read_text(encoding="utf-8")
+    detail = (template_root / "detail.html").read_text(encoding="utf-8")
+
+    assert '{% from "components/media_card.html" import media_card %}' in index
+    assert "{{ media_card(card) }}" in index
+    assert 'class="media-grid"' in index
+    assert "current_user.role_" not in index + form + detail
+    assert 'role="status" aria-live="polite"' in form
+    assert 'aria-busy="false"' in form
+    assert 'class="media-metadata-results-heading movie-metadata-results-heading" tabindex="-1"' in form
+
+
+@pytest.mark.unit
+def test_movie_metadata_js_preserves_focus_and_safe_dom_construction():
+    script = (Path(routes.__file__).resolve().parents[1] / "static" / "js" / "movies.js").read_text(encoding="utf-8")
+
+    assert ".innerHTML" not in script
+    assert "results.replaceChildren" not in script
+    assert script.count("resultsHeading.focus();") == 2
+    assert 'results.setAttribute("aria-busy", "true")' in script
+    assert 'results.setAttribute("aria-busy", "false")' in script
+    assert '"X-CSRFToken"' in script

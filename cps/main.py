@@ -35,6 +35,8 @@ def main():
     from .progress_syncing.protocols.kosync import kosync
     from .duplicates import duplicates
     from .movie_library.routes import movies
+    from .external_books.routes import external_books
+    from .catalog.routes import catalog
     try:
         from .kobo import kobo, get_kobo_activated
         from .kobo_auth import kobo_auth
@@ -85,6 +87,8 @@ def main():
     app.register_blueprint(kosync)
     app.register_blueprint(duplicates)
     app.register_blueprint(movies)
+    app.register_blueprint(external_books)
+    app.register_blueprint(catalog)
     if kobo_available:
         app.register_blueprint(kobo)
         app.register_blueprint(kobo_auth)

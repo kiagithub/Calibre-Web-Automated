@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% from "components/media_card.html" import media_card %}
+{% block body %}
+<main class="media-page catalog-page" aria-labelledby="catalog-heading">
+  <header class="media-header">
+    <div>
+      <span class="media-eyebrow">{{ _('Combined collection') }}</span>
+      <h1 id="catalog-heading">{{ _('Books') }}</h1>
+      <p>{{ _('Browse Calibre files and your personal physical or digital collection.') }}</p>
+    </div>
+    {% if can_edit_media %}<a class="btn btn-primary" href="{{ url_for('external_books.new') }}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> {{ _('Add Book') }}</a>{% endif %}
+  </header>
+
+  <nav class="media-source-tabs" aria-label="{{ _('Book sources') }}">
+    <a href="{{ url_for('catalog.index') }}"{% if selected_source == 'all' %} class="active" aria-current="page"{% endif %}>{{ _('All books') }}</a>
+    <a href="{{ url_for('catalog.calibre') }}">{{ _('Calibre library') }}</a>
+    <a href="{{ url_for('external_books.index') }}"{% if selected_source == 'external' %} class="active" aria-current="page"{% endif %}>{{ _('Personal books') }}</a>
+  </nav>
+
+  <section class="media-toolbar" aria-label="{{ _('Search and filter books') }}">
+    <form method="get" action="{{ url_for('catalog.index') }}" class="media-filter-form">
+      <div class="form-group media-search-field">
+        <label for="catalog-query">{{ _('Search books') }}</label>
+        <input class="form-control" type="search" id="catalog-query" name="q" value="{{ query_text }}" maxlength="200" placeholder="{{ _('Title, author, series, identifier…') }}">
+      </div>
+      <div class="form-group">
+        <label for="catalog-source">{{ _('Source') }}</label>
+        <select class="form-control" id="catalog-source" name="source">
+          <option value="all"{% if selected_source == 'all' %} selected{% endif %}>{{ _('All sources') }}</option>
+          <option value="calibre"{% if selected_source == 'calibre' %} selected{% endif %}>{{ _('Calibre') }}</option>
+          <option value="external"{% if selected_source == 'external' %} selected{% endif %}>{{ _('Personal books') }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="catalog-type">{{ _('Personal book type') }}</label>
+        <select class="form-control" id="catalog-type" name="media_type">
+          <option value="">{{ _('All types') }}</option>
+          {% for value, label in types %}<option value="{{ value }}"{% if selected_type == value %} selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="catalog-tag">{{ _('Tag') }}</label>
+        <select class="form-control" id="catalog-tag" name="tag">
+          <option value="">{{ _('All tags') }}</option>
+          {% for tag in tags %}<option value="{{ tag }}"{% if selected_tag == tag %} selected{% endif %}>{{ tag }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">{{ _('Apply filters') }}</button>
+      {% if query_text or selected_type or selected_tag or selected_source != 'all' %}<a class="btn btn-default" href="{{ url_for('catalog.index') }}">{{ _('Clear filters') }}</a>{% endif %}
+    </form>
+    <p class="media-total">{{ total }} {{ _('book') if total == 1 else _('books') }} · {{ _('Recently added') }}</p>
+  </section>
+
+  {% if entries %}
+  <section class="media-grid" aria-label="{{ _('Combined book catalog') }}">
+    {% for card in entries %}{{ media_card(card) }}{% endfor %}
+  </section>
+  {% else %}
+  <section class="media-empty-state">
+    <h2>{{ _('No books found') }}</h2>
+    <p>{{ _('Try another search or add a personal book.') }}</p>
+    {% if can_edit_media %}<a class="btn btn-primary" href="{{ url_for('external_books.new') }}">{{ _('Add Book') }}</a>{% endif %}
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

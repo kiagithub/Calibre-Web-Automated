@@ -1,0 +1,77 @@
+{% extends "layout.html" %}
+{% block body %}
+{% set media_type_label = {'physical': _('Physical'), 'kindle': _('Kindle'), 'other_digital': _('Other digital')}.get(book.media_type, book.media_type) %}
+<main class="external-books-page external-books-detail-page" aria-labelledby="external-book-title">
+  <a class="external-books-back-link" href="{{ url_for('external_books.index') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> {{ _('Back to external books') }}</a>
+  <article class="external-books-detail-card">
+    <div class="external-books-detail-cover">
+      <img src="{{ url_for('external_books.cover', book_id=book.id) }}" alt="{{ _('Cover for %(title)s', title=book.title) }}" width="200" height="300">
+      <span class="external-books-badge">{{ media_type_label }}</span>
+      {% if book.location %}<p><span class="glyphicon glyphicon-map-marker" aria-hidden="true"></span> {{ book.location }}</p>{% endif %}
+    </div>
+
+    <div class="external-books-detail-content">
+      <header class="external-books-detail-heading">
+        <div>
+          <span class="external-books-eyebrow">{{ media_type_label }}</span>
+          <h1 id="external-book-title">{{ book.title }}</h1>
+          {% if book.authors %}<p class="external-books-authors">{{ book.authors|join(', ') }}</p>{% endif %}
+          {% if book.series %}<p class="external-books-series">{{ book.series }}{% if book.series_index %} · #{{ book.series_index }}{% endif %}</p>{% endif %}
+        </div>
+        {% if can_edit_media %}<a class="btn btn-default" href="{{ url_for('external_books.edit', book_id=book.id) }}"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span> {{ _('Edit') }}</a>{% endif %}
+      </header>
+
+      {% if book.tags %}<div class="external-books-tags" aria-label="{{ _('Tags') }}">{% for tag in book.tags %}<a href="{{ url_for('external_books.index', tag=tag.name) }}">{{ tag.name }}</a>{% endfor %}</div>{% endif %}
+      {% if book.personal_rating is not none %}<p class="external-books-rating"><strong>{{ _('My rating') }}</strong> {{ book.personal_rating }}/10</p>{% endif %}
+
+      <section class="external-books-description">
+        <h2>{{ _('Description') }}</h2>
+        <p>{{ book.description or _('No description has been added yet.') }}</p>
+      </section>
+
+      <dl class="external-books-metadata">
+        {% if book.authors %}<div><dt>{{ _('Authors') }}</dt><dd>{{ book.authors|join(', ') }}</dd></div>{% endif %}
+        {% if book.languages %}<div><dt>{{ _('Languages') }}</dt><dd>{{ book.languages|join(', ') }}</dd></div>{% endif %}
+        <div><dt>{{ _('Book type') }}</dt><dd>{{ media_type_label }}</dd></div>
+        {% if book.publisher %}<div><dt>{{ _('Publisher') }}</dt><dd>{{ book.publisher }}</dd></div>{% endif %}
+        {% if book.published_date %}<div><dt>{{ _('Publication date') }}</dt><dd>{{ book.published_date }}</dd></div>{% endif %}
+        {% if book.series %}<div><dt>{{ _('Series') }}</dt><dd>{{ book.series }}{% if book.series_index %} #{{ book.series_index }}{% endif %}</dd></div>{% endif %}
+        {% if book.page_count %}<div><dt>{{ _('Page count') }}</dt><dd>{{ book.page_count }}</dd></div>{% endif %}
+        {% if book.binding %}<div><dt>{{ _('Binding') }}</dt><dd>{{ book.binding }}</dd></div>{% endif %}
+        {% if book.edition %}<div><dt>{{ _('Edition') }}</dt><dd>{{ book.edition }}</dd></div>{% endif %}
+        {% if book.isbn_10 %}<div><dt>{{ _('ISBN-10') }}</dt><dd>{{ book.isbn_10 }}</dd></div>{% endif %}
+        {% if book.isbn_13 %}<div><dt>{{ _('ISBN-13') }}</dt><dd>{{ book.isbn_13 }}</dd></div>{% endif %}
+        {% if book.asin %}<div><dt>{{ _('ASIN') }}</dt><dd>{{ book.asin }}</dd></div>{% endif %}
+        {% if book.metadata_provider %}<div><dt>{{ _('Metadata provider') }}</dt><dd>{{ book.metadata_provider }}</dd></div>{% endif %}
+      </dl>
+
+      <section class="external-books-ownership">
+        <h2>{{ _('My copy') }}</h2>
+        <dl>
+          {% if book.location %}<div><dt>{{ _('Shelf / location') }}</dt><dd>{{ book.location }}</dd></div>{% endif %}
+          {% if book.condition %}<div><dt>{{ _('Condition') }}</dt><dd>{{ book.condition }}</dd></div>{% endif %}
+          {% if book.edition %}<div><dt>{{ _('Edition') }}</dt><dd>{{ book.edition }}</dd></div>{% endif %}
+          {% if book.binding %}<div><dt>{{ _('Binding') }}</dt><dd>{{ book.binding }}</dd></div>{% endif %}
+          {% if book.date_acquired %}<div><dt>{{ _('Date acquired') }}</dt><dd>{{ book.date_acquired }}</dd></div>{% endif %}
+          <div><dt>{{ _('Added to collection') }}</dt><dd>{{ book.created_at }}</dd></div>
+        </dl>
+      </section>
+
+      {% if book.notes %}<section class="external-books-notes"><h2>{{ _('My notes') }}</h2><p>{{ book.notes }}</p></section>{% endif %}
+
+      <div class="external-books-detail-actions">
+        {% if can_edit_media %}<a class="btn btn-primary" href="{{ url_for('external_books.edit', book_id=book.id) }}#metadata-search"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> {{ _('Find or update metadata') }}</a>{% endif %}
+        {% if book.metadata_url %}<a class="btn btn-default" href="{{ book.metadata_url }}" target="_blank" rel="noopener noreferrer">{{ _('View metadata source') }} <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>{% endif %}
+      </div>
+
+      {% if can_delete_media %}
+      <form method="post" action="{{ url_for('external_books.delete', book_id=book.id) }}" class="external-books-delete-form" data-confirm="{{ _('Delete %(title)s from your external book library? This cannot be undone.', title=book.title) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-danger" type="submit"><span class="glyphicon glyphicon-trash" aria-hidden="true"></span> {{ _('Delete book') }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </article>
+</main>
+{% endblock %}
+{% block js %}<script src="{{ url_for('static', filename='js/external_books.js') }}"></script>{% endblock %}

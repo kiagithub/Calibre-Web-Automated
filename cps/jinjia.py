@@ -25,10 +25,9 @@ log = logger.create()
 # pagination links in jinja
 @jinjia.app_template_filter('url_for_other_page')
 def url_for_other_page(page):
-    args = request.view_args.copy()
+    args = request.args.to_dict()
+    args.update(request.view_args or {})
     args['page'] = page
-    for get, val in request.args.items():
-        args[get] = val
     return url_for(request.endpoint, **args)
 
 

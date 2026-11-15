@@ -165,14 +165,15 @@ class Hardcover(Metadata):
 
         try:
             edition_search = query.split(":")[0] == "hardcover-id"
-            Hardcover.HEADERS["Authorization"] = "Bearer %s" % token.replace("Bearer ", "")
+            headers = Hardcover.HEADERS.copy()
+            headers["Authorization"] = "Bearer %s" % token.replace("Bearer ", "")
             resp = requests.post(
                 Hardcover.BASE_URL,
                 json={
                     "query": Hardcover.EDITION_QUERY if edition_search else Hardcover.SEARCH_QUERY,
                     "variables": {"query": int(query.split(":")[1]) if edition_search else query},
                 },
-                headers=Hardcover.HEADERS,
+                headers=headers,
                 timeout=15,
             )
             resp.raise_for_status()

@@ -260,8 +260,8 @@ a#advanced_search > span.hidden-sm {
    are now cropped to fill it instead. The old shadow (0 5px 8px -6px #777) was a
    light grey offset downwards, which read as a glow on the bottom edge only. */
 .container-fluid .book .cover span img,
-#books .cover img,
-#books_rand .cover img,
+.book-card .cover img,
+.book-card .cover img,
 .book.isotope-item .cover img {
     width: 100% !important;
     height: auto !important;
@@ -280,11 +280,11 @@ a#advanced_search > span.hidden-sm {
     height: auto !important;
 }
 
-/* #books / #books_rand need their own selectors: caliBlur makes their links
+/* .book-card / .book-card need their own selectors: caliBlur makes their links
    inline-block with an id selector, which shrinks the first card's cover */
 .container-fluid .book .cover > a,
-#books > .cover > a,
-#books_rand > .cover > a,
+.book-card > .cover > a,
+.book-card > .cover > a,
 .container-fluid .book .cover span.img {
     display: block;
     width: 100%;
@@ -292,10 +292,10 @@ a#advanced_search > span.hidden-sm {
 }
 
 /* Keep the hover overlay inside the rounded frame */
-#books > .cover > a:after,
-#books_rand > .cover > a:after,
+.book-card > .cover > a:after,
+.book-card > .cover > a:after,
 .book.isotope-item > .cover > a:after,
-#books .cover > a:after,
-#books_rand .cover > a:after {
+.book-card .cover > a:after,
+.book-card .cover > a:after {
     border-radius: 4px;
 }

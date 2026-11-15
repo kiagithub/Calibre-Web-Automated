@@ -1,0 +1,16 @@
+{% macro media_card(card) %}
+<article class="media-card" data-source="{{ card.source }}" data-media-id="{{ card.id }}">
+  <a class="media-card-link" href="{{ card.detail_url }}">
+    <div class="media-card-cover">
+      <img class="media-card-image" src="{{ card.cover_url }}" alt="" loading="lazy" width="200" height="300">
+      {% if card.badge or card.source %}<span class="media-card-badge">{{ card.badge or card.source }}</span>{% endif %}
+      {% if card.state %}<span class="media-card-state"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span><span class="sr-only">{{ card.state }}</span></span>{% endif %}
+    </div>
+    <div class="media-card-content">
+      <h2 class="media-card-title">{{ card.title }}</h2>
+      {% if card.byline %}<p class="media-card-byline">{{ card.byline }}</p>{% endif %}
+      {% if card.location %}<p class="media-card-location"><span class="glyphicon glyphicon-map-marker" aria-hidden="true"></span> {{ card.location }}</p>{% endif %}
+    </div>
+  </a>
+</article>
+{% endmacro %}

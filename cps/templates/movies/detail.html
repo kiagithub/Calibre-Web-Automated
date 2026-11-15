@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 {% block body %}
-<main class="movie-page movie-detail-page" aria-labelledby="movie-title">
-  <a class="movie-back-link" href="{{ url_for('movies.index') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> Back to movies</a>
-  <article class="movie-detail-card">
-    <div class="movie-detail-poster">
-      <img src="{{ url_for('movies.poster', movie_id=movie.id) }}" alt="Poster for {{ movie.title }}">
+<main class="media-page movie-detail-page" aria-labelledby="movie-title">
+  <a class="media-back-link movie-back-link" href="{{ url_for('movies.index') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> Back to movies</a>
+  <article class="media-detail-card movie-detail-card">
+    <div class="media-detail-cover movie-detail-poster">
+      <img src="{{ url_for('movies.poster', movie_id=movie.id) }}" alt="Poster for {{ movie.title }}" width="200" height="300">
       <div class="movie-physical-summary">
         <span class="movie-format-badge">{{ movie.media_format }}</span>
         {% if movie.location %}<p><span class="glyphicon glyphicon-map-marker" aria-hidden="true"></span> {{ movie.location }}</p>{% endif %}
@@ -14,10 +14,10 @@
         {% if movie.date_acquired %}<p><span class="glyphicon glyphicon-calendar" aria-hidden="true"></span> Acquired {{ movie.date_acquired }}</p>{% endif %}
       </div>
     </div>
-    <div class="movie-detail-content">
-      <div class="movie-detail-heading">
+    <div class="media-detail-content movie-detail-content">
+      <div class="media-detail-heading movie-detail-heading">
         <div>
-          <span class="movie-eyebrow">{{ movie.media_format }}{% if movie.is_watched %} · Watched{% endif %}</span>
+          <span class="media-eyebrow movie-eyebrow">{{ movie.media_format }}{% if movie.is_watched %} · Watched{% endif %}</span>
           <h1 id="movie-title">{{ movie.title }}</h1>
           {% if movie.original_title and movie.original_title != movie.title %}<p class="movie-original-title">{{ movie.original_title }}</p>{% endif %}
           <p class="movie-detail-byline">
@@ -26,7 +26,7 @@
             {% if movie.content_rating %}<span class="movie-rating-chip">{{ movie.content_rating }}</span>{% endif %}
           </p>
         </div>
-        {% if current_user.is_authenticated and (current_user.role_edit() or current_user.role_admin()) %}
+        {% if can_edit_media %}
         <a class="btn btn-default" href="{{ url_for('movies.edit', movie_id=movie.id) }}"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</a>
         {% endif %}
       </div>
@@ -49,13 +49,13 @@
       </dl>
       {% if movie.notes %}<section class="movie-notes"><h2>My notes</h2><p>{{ movie.notes }}</p></section>{% endif %}
 
-      <div class="movie-detail-actions">
-        {% if current_user.is_authenticated and (current_user.role_edit() or current_user.role_admin()) %}
+      <div class="media-detail-actions movie-detail-actions">
+        {% if can_edit_media %}
         <a class="btn btn-primary" href="{{ url_for('movies.edit', movie_id=movie.id) }}#metadata-search"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> Find or update metadata</a>
         {% endif %}
         {% if movie.tmdb_id %}<a class="btn btn-default" href="https://www.themoviedb.org/movie/{{ movie.tmdb_id }}" target="_blank" rel="noopener noreferrer">View on TMDB <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>{% endif %}
       </div>
-      <footer class="movie-attribution">Metadata and images: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</footer>
+      <footer class="media-attribution movie-attribution">Metadata and images: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</footer>
     </div>
   </article>
 </main>

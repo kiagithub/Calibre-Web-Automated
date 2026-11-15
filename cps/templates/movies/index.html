@@ -1,34 +1,35 @@
 {% extends "layout.html" %}
+{% from "components/media_card.html" import media_card %}
 {% block body %}
-<main class="movie-page movie-index" aria-labelledby="movies-heading">
-  <header class="movie-hero">
+<main class="media-page movie-index" aria-labelledby="movies-heading">
+  <header class="media-header">
     <div>
-      <span class="movie-eyebrow"><span class="glyphicon glyphicon-film" aria-hidden="true"></span> Physical collection</span>
+      <span class="media-eyebrow"><span class="glyphicon glyphicon-film" aria-hidden="true"></span> Physical collection</span>
       <h1 id="movies-heading">Movies, beautifully organized.</h1>
       <p>Every disc, every edition, always easy to find.</p>
     </div>
-    {% if current_user.is_authenticated and (current_user.role_edit() or current_user.role_admin()) %}
-      <a class="btn btn-primary movie-add-button" href="{{ url_for('movies.new') }}">
+    {% if can_edit_media %}
+      <a class="btn btn-primary media-add-button" href="{{ url_for('movies.new') }}">
         <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add movie
       </a>
     {% endif %}
   </header>
 
-  <section class="movie-toolbar" aria-label="Search and filter movies">
-    <form method="get" action="{{ url_for('movies.index') }}" class="movie-filter-form">
-      <div class="movie-search-field">
+  <section class="media-toolbar" aria-label="Search and filter movies">
+    <form method="get" action="{{ url_for('movies.index') }}" class="media-filter-form">
+      <div class="form-group media-search-field">
         <label class="sr-only" for="movie-query">Search movies</label>
         <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
-        <input type="search" id="movie-query" name="q" value="{{ query_text }}" placeholder="Search title, cast, director, barcode…" maxlength="200">
+        <input class="form-control" type="search" id="movie-query" name="q" value="{{ query_text }}" placeholder="Search title, cast, director, barcode…" maxlength="200">
       </div>
-      <div>
+      <div class="form-group">
         <label class="sr-only" for="movie-format">Filter by format</label>
         <select id="movie-format" name="format" class="form-control">
           <option value="">All formats</option>
           {% for format in formats %}<option value="{{ format }}" {% if selected_format == format %}selected{% endif %}>{{ format }}</option>{% endfor %}
         </select>
       </div>
-      <div>
+      <div class="form-group">
         <label class="sr-only" for="movie-sort">Sort movies</label>
         <select id="movie-sort" name="sort" class="form-control">
           <option value="title" {% if sort == 'title' %}selected{% endif %}>Title</option>
@@ -41,9 +42,9 @@
       <button class="btn btn-primary" type="submit">Apply</button>
       {% if query_text or selected_format %}<a class="btn btn-default" href="{{ url_for('movies.index') }}">Clear</a>{% endif %}
     </form>
-    <div class="movie-toolbar-footer">
-      <span>{{ total }} {% if total == 1 %}movie{% else %}movies{% endif %}{% if query_text %} matching “{{ query_text }}”{% endif %}</span>
-      <a class="movie-sort-direction" href="{{ url_for('movies.index', q=query_text, format=selected_format, sort=sort, direction='asc' if direction == 'desc' else 'desc') }}" title="Reverse sort order">
+    <div class="media-toolbar-footer">
+      <span class="media-total">{{ total }} {% if total == 1 %}movie{% else %}movies{% endif %}{% if query_text %} matching “{{ query_text }}”{% endif %}</span>
+      <a class="media-sort-direction" href="{{ url_for('movies.index', q=query_text, format=selected_format, sort=sort, direction='asc' if direction == 'desc' else 'desc') }}" title="Reverse sort order">
         <span class="glyphicon glyphicon-sort-by-alphabet{% if direction == 'desc' %}-alt{% endif %}" aria-hidden="true"></span>
         {% if direction == 'desc' %}Descending{% else %}Ascending{% endif %}
       </a>
@@ -51,24 +52,11 @@
   </section>
 
   {% if entries %}
-  <section class="movie-grid" aria-label="Movie collection">
-    {% for movie in entries %}
-    <article class="movie-card">
-      <a class="movie-card-poster" href="{{ url_for('movies.detail', movie_id=movie.id) }}" aria-label="View {{ movie.title }}">
-        <img src="{{ url_for('movies.poster', movie_id=movie.id) }}" alt="" loading="lazy">
-        <span class="movie-format-badge">{{ movie.media_format }}</span>
-        {% if movie.is_watched %}<span class="movie-watched-badge" title="Watched"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span><span class="sr-only">Watched</span></span>{% endif %}
-      </a>
-      <div class="movie-card-content">
-        <a href="{{ url_for('movies.detail', movie_id=movie.id) }}"><h2 title="{{ movie.title }}">{{ movie.title }}</h2></a>
-        <p class="movie-card-byline">{{ movie.year or 'Year unknown' }}{% if movie.director %} · {{ movie.director }}{% endif %}</p>
-        {% if movie.location %}<p class="movie-card-location"><span class="glyphicon glyphicon-map-marker" aria-hidden="true"></span> {{ movie.location }}</p>{% endif %}
-      </div>
-    </article>
-    {% endfor %}
+  <section class="media-grid" aria-label="Movie collection">
+    {% for card in entries %}{{ media_card(card) }}{% endfor %}
   </section>
   {% else %}
-  <section class="movie-empty-state">
+  <section class="media-empty-state">
     <span class="glyphicon glyphicon-film" aria-hidden="true"></span>
     {% if query_text or selected_format %}
       <h2>No movies found</h2>
@@ -77,10 +65,10 @@
     {% else %}
       <h2>Your movie shelf is ready</h2>
       <p>Add a movie manually, or find it online and import its poster and metadata.</p>
-      {% if current_user.is_authenticated and (current_user.role_edit() or current_user.role_admin()) %}<a class="btn btn-primary" href="{{ url_for('movies.new') }}">Add your first movie</a>{% endif %}
+      {% if can_edit_media %}<a class="btn btn-primary" href="{{ url_for('movies.new') }}">Add your first movie</a>{% endif %}
     {% endif %}
   </section>
   {% endif %}
-  <footer class="movie-attribution">Movie metadata and images: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</footer>
+  <footer class="media-attribution movie-attribution">Movie metadata and images: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</footer>
 </main>
 {% endblock %}

@@ -1512,13 +1512,13 @@ button#btn-book-convert {
     width: 150px !important;
 }
 
-#books > .cover > a, #books_rand > .cover > a, .book.isotope-item > .cover > a, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a {
+.book-card > .cover > a, .book-card > .cover > a, .book.isotope-item > .cover > a, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a {
     display: inline-block;
     width: auto;
     height: 100%
 }
 
-#books > .cover > a:before, #books_rand > .cover > a:before, .book.isotope-item > .cover > a:before, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a:before, #books .cover > a:before, #books_rand .cover > a:before {
+.book-card > .cover > a:before, .book-card > .cover > a:before, .book.isotope-item > .cover > a:before, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a:before, .book-card .cover > a:before, .book-card .cover > a:before {
     content: "\e352";
     font-family: Glyphicons Regular, serif;
     background: var(--color-secondary);
@@ -1545,14 +1545,14 @@ body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form
     zoom: .8
 }
 
-#books > .cover > a:hover:before, #books_rand > .cover > a:hover:before, .book.isotope-item > .cover > a:hover:before, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a:hover:before, #books .cover > a:hover:before, #books_rand .cover > a:hover:before {
+.book-card > .cover > a:hover:before, .book-card > .cover > a:hover:before, .book.isotope-item > .cover > a:hover:before, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a:hover:before, .book-card .cover > a:hover:before, .book-card .cover > a:hover:before {
     -o-transition: all .2s;
     transition: all .2s;
     -webkit-transition: all .2s;
     opacity: 1;
 }
 
-#books > .cover > a:hover, #books_rand > .cover > a:hover, .book.isotope-item > .cover > a:hover, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a:hover, #books .cover > a:hover, #books_rand .cover > a:hover {
+.book-card > .cover > a:hover, .book-card > .cover > a:hover, .book.isotope-item > .cover > a:hover, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a:hover, .book-card .cover > a:hover, .book-card .cover > a:hover {
     /* outline: solid var(--color-secondary); */
     font-size: 50px;
     -o-transition: outline 0s;
@@ -1560,7 +1560,7 @@ body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form
     -webkit-transition: outline 0s
 }
 
-#books > .cover > a:after, #books_rand > .cover > a:after, .book.isotope-item > .cover > a:after, #books .cover > a:after, #books_rand .cover > a:after {
+.book-card > .cover > a:after, .book-card > .cover > a:after, .book.isotope-item > .cover > a:after, .book-card .cover > a:after, .book-card .cover > a:after {
     position: absolute;
     content: '';
     width: 100%;
@@ -1613,7 +1613,7 @@ body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form
     background: radial-gradient(farthest-corner at 50% 50%, rgba(50, 50, 50, .5) 50%, #323232 100%)
 }
 
-#books > .cover > a:hover:after, #books_rand > .cover > a:hover:after, .book.isotope-item > .cover > a:hover:after, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a:hover:after, #books .cover > a:hover:after, #books_rand .cover > a:hover:after {
+.book-card > .cover > a:hover:after, .book-card > .cover > a:hover:after, .book.isotope-item > .cover > a:hover:after, body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form > div.col-sm-12 > div.col-sm-12 > div.col-sm-2 > a:hover:after, .book-card .cover > a:hover:after, .book-card .cover > a:hover:after {
     opacity: 1;
     -o-transition: opacity .1s;
     transition: opacity .1s;
@@ -1633,11 +1633,6 @@ body > div.container-fluid > div.row-fluid > div.col-sm-10 > div.discover > form
     height: 60px !important;
     padding-bottom: 0;
     overflow: visible !important
-}
-
-.btn.active.focus, .btn.active:focus, .btn.focus, .btn:active.focus, .btn:active:focus, .btn:focus {
-    outline: 0;
-    outline-offset: 0
 }
 
 .badge {
@@ -2507,7 +2502,7 @@ body > div.row-fluid {
     color: hsla(0, 0%, 100%, .45)
 }
 
-#books .cover img, #books_rand .cover img, .book .cover img {
+.book-card .cover img, .book-card .cover img, .book .cover img {
     width: auto
 }
 
@@ -2980,8 +2975,6 @@ body.advanced_search > div.container-fluid > div > div.col-sm-10 > div.col-sm-8:
 }
 
 a:focus {
-    outline: 0;
-    outline-offset: 0;
     color: rgb(255 255 255 / 50%);
 }
 
@@ -5958,7 +5951,7 @@ body.authorlist .blur-wrapper:after {
     min-width: 180px !important
 }
 
-#books .cover img, #books_rand .cover img, .book.isotope-item .cover img {
+.book-card .cover img, .book-card .cover img, .book.isotope-item .cover img {
     width: 150px !important
 }
 
@@ -6653,11 +6646,11 @@ body.edituser.admin > div.container-fluid > div.row-fluid > div.col-sm-10 > div.
         max-height: 100%;
     }
 
-    #books .cover img, #books_rand .cover img, .book.isotope-item .cover img {
+    .book-card .cover img, .book-card .cover img, .book.isotope-item .cover img {
         width: 150px !important
     }
 
-    #books > .cover > a:before, #books_rand > .cover > a:before, .book.isotope-item > .cover > a:before, #books .cover > a:before, #books_rand .cover > a:before {
+    .book-card > .cover > a:before, .book-card > .cover > a:before, .book.isotope-item > .cover > a:before, .book-card .cover > a:before, .book-card .cover > a:before {
         line-height: 40px;
         width: 40px;
         height: 40px;
@@ -8608,192 +8601,126 @@ button.close {
     margin-left: 1rem;
 }
 
-/* Disable direct reading functionality on mobile/touch devices */
-@media (max-width: 767px), (hover: none) {
-    #books > .cover > a:before, 
-    #books_rand > .cover > a:before, 
-    .book.isotope-item > .cover > a:before, 
-    #books .cover > a:before, 
-    #books_rand .cover > a:before,
-    .read-toggle-btn,
-    .edit-metadata-btn,
-    .send-ereader-btn {
-        display: none !important;
-    }
-    
-    #books > .cover > a:hover:before, 
-    #books_rand > .cover > a:hover:before, 
-    .book.isotope-item > .cover > a:hover:before, 
-    #books .cover > a:hover:before, 
-    #books_rand .cover > a:hover:before {
-        display: none !important;
-    }
+/* Native quick actions are outside the detail link and work with keyboard/touch. */
+.book .cover {
+    position: relative;
 }
 
-/* Enhanced visual feedback for direct reading pseudo-element */
-.book-cover-link.hovering-read-icon:before {
-    background: rgba(255, 255, 255, 0.9) !important;
-    color: var(--color-secondary) !important;
-    transform: scale(1.1) !important;
+.book .cover > a:before,
+.book .cover > a:after {
+    display: none !important;
+    content: none !important;
 }
 
-/* Read status toggle element - positioned bottom-left behind existing read badge */
-.read-toggle-btn {
-    background: rgb(19 28 36 / 71%);
-    border-radius: 50%;
-    font-size: 14px;
-    line-height: 35px;
-    width: 35px;
-    height: 35px;
-    text-align: center;
+.book-quick-action {
     position: absolute;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgb(19 28 36 / 82%);
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: background-color .15s ease, opacity .15s ease;
+}
+
+.book-quick-action .glyphicon {
+    top: 0;
+    margin: 0;
+    color: #fff;
+}
+
+.direct-read-btn {
+    top: 50%;
+    left: 50%;
+    width: 50px;
+    height: 50px;
+    transform: translate(-50%, -50%);
+    background: var(--color-secondary);
+    font-size: 22px;
+}
+
+.read-toggle-btn {
     bottom: 8px;
     left: 8px;
-    opacity: 0;
-    z-index: 8;
-    color: #fff;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none; /* Allow hover to pass through when not visible */
 }
 
-.read-toggle-btn .glyphicon {
-    font-size: 14px;
-    color: #fff;
-    margin-bottom: -2px;
-}
-
-/* Edit metadata element - positioned center-bottom */
 .edit-metadata-btn {
-    background: rgb(19 28 36 / 71%);
-    border-radius: 50%;
-    font-size: 14px;
-    line-height: 35px;
-    width: 35px;
-    height: 35px;
-    text-align: center;
-    position: absolute;
     bottom: 8px;
-    left: calc(50% - 17.5px);
-    opacity: 0;
-    z-index: 8;
-    color: #fff;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none; /* Allow hover to pass through when not visible */
+    left: calc(50% - 18px);
 }
 
-.edit-metadata-btn .glyphicon {
-    font-size: 14px;
-    color: #fff;
-}
-
-/* Send to eReader element - positioned bottom-right */
 .send-ereader-btn {
-    background: rgb(19 28 36 / 71%);
-    border-radius: 50%;
-    font-size: 14px;
-    line-height: 35px;
-    width: 35px;
-    height: 35px;
-    text-align: center;
-    position: absolute;
-    bottom: 8px;
     right: 8px;
-    opacity: 0;
-    z-index: 9;
-    color: #fff;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none; /* Allow hover to pass through when not visible */
+    bottom: 8px;
 }
 
-.send-ereader-btn .glyphicon {
-    font-size: 14px;
-    color: #fff;
-    margin-left: -4px;
-    margin-bottom: -2px;
-}
-
-/* Show additional elements on cover hover - buttons are now inside the link */
-#books > .cover > a:hover .read-toggle-btn,
-#books > .cover > a:hover .edit-metadata-btn,
-#books > .cover > a:hover .send-ereader-btn,
-#books_rand > .cover > a:hover .read-toggle-btn,
-#books_rand > .cover > a:hover .edit-metadata-btn,
-#books_rand > .cover > a:hover .send-ereader-btn,
-.book.isotope-item > .cover > a:hover .read-toggle-btn,
-.book.isotope-item > .cover > a:hover .edit-metadata-btn,
-.book.isotope-item > .cover > a:hover .send-ereader-btn,
-#books .cover > a:hover .read-toggle-btn,
-#books .cover > a:hover .edit-metadata-btn,
-#books .cover > a:hover .send-ereader-btn,
-.cover:hover .read-toggle-btn,
-.cover:hover .edit-metadata-btn,
-.cover:hover .send-ereader-btn {
+.book .cover:hover .book-quick-action,
+.book .cover:focus-within .book-quick-action,
+.book-quick-action.loading,
+.book-quick-action.success,
+.book-quick-action.error {
     opacity: 1;
-    pointer-events: auto; /* Enable pointer events when visible */
+    pointer-events: auto;
 }
 
-/* Enhanced visual feedback for hovering over specific action areas */
-.read-toggle-btn.hovering {
-    background: rgba(200, 152, 94, 0.9) !important;
-    transform: scale(1.1) !important;
+.book-quick-action:hover {
+    background: var(--color-secondary);
 }
 
-.edit-metadata-btn.hovering {
-    background: rgba(200, 152, 94, 0.9) !important;
-    transform: scale(1.1) !important;
+.book-quick-action:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+    opacity: 1;
+    pointer-events: auto;
 }
 
-.send-ereader-btn.hovering {
-    background: rgba(200, 152, 94, 0.9) !important;
-    transform: scale(1.1) !important;
+.book-quick-action.loading {
+    background: rgba(200, 130, 25, .95);
 }
 
-/* Loading state for action buttons */
-.read-toggle-btn.loading,
-.edit-metadata-btn.loading,
-.send-ereader-btn.loading {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    background: rgba(255, 165, 0, 0.9) !important;
-    animation: pulse 1s infinite;
-}
-
-.read-toggle-btn.loading .glyphicon,
-.edit-metadata-btn.loading .glyphicon,
-.send-ereader-btn.loading .glyphicon {
+.book-quick-action.loading .glyphicon {
     animation: spin 1s linear infinite;
 }
 
-/* Success state for action buttons */
-.read-toggle-btn.success,
-.edit-metadata-btn.success,
-.send-ereader-btn.success {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    background: rgba(0, 200, 0, 0.9) !important;
-    transform: scale(1.1);
+.book-quick-action.success {
+    background: rgba(35, 140, 70, .95);
 }
 
-/* Error state for action buttons */
-.read-toggle-btn.error,
-.edit-metadata-btn.error,
-.send-ereader-btn.error {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    background: rgba(200, 0, 0, 0.9) !important;
-    transform: scale(1.1);
+.book-quick-action.error {
+    background: rgba(180, 45, 45, .95);
+}
+
+@media (max-width: 767px), (hover: none) {
+    .book-quick-action {
+        width: 40px;
+        height: 40px;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .direct-read-btn {
+        width: 48px;
+        height: 48px;
+    }
+
+    .edit-metadata-btn {
+        left: calc(50% - 20px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .book-quick-action,
+    .book-quick-action.loading .glyphicon {
+        transition: none;
+        animation: none;
+    }
 }
 
 /* Animations for loading and feedback states */

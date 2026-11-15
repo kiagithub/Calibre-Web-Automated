@@ -1,0 +1,51 @@
+{% macro calibre_book_card(entry, simple, page) %}
+{% import 'image.html' as image %}
+<div class="col-sm-3 col-lg-2 col-xs-6 book session book-card">
+  <div class="cover">
+    <a href="{{ url_for('web.show_book', book_id=entry.Books.id) }}"
+       {% if simple==false %}data-toggle="modal" data-target="#bookDetailsModal" data-remote="false"{% endif %}
+       data-book-id="{{ entry.Books.id }}"
+       data-book-formats="{% for format in entry.Books.data %}{{ format.format.lower() }}{% if not loop.last %},{% endif %}{% endfor %}"
+       class="book-cover-link">
+      <span class="img" title="{{ entry.Books.title }}">
+        {{ image.book_cover(entry.Books) }}
+        {% if entry[2] == True %}<span class="badge read glyphicon glyphicon-ok"></span>{% endif %}
+      </span>
+    </a>
+  </div>
+  <div class="meta">
+    <a href="{{ url_for('web.show_book', book_id=entry.Books.id) }}" {% if simple==false %}data-toggle="modal" data-target="#bookDetailsModal" data-remote="false"{% endif %}>
+      <p title="{{entry.Books.title}}" class="title">{{entry.Books.title|shortentitle}}</p>
+    </a>
+    <p class="author">
+      {% for author in entry.Books.authors %}
+        {% if loop.index > g.config_authors_max and g.config_authors_max != 0 %}
+          {% if not loop.first %}<span class="author-hidden-divider">&amp;</span>{% endif %}
+          <a class="author-name author-hidden" href="{{url_for('web.books_list', data='author', sort_param='stored', book_id=author.id)}}">{{author.name.replace('|',',')|shortentitle(30)}}</a>
+          {% if loop.last %}<button type="button" class="author-expand btn-link" data-authors-max="{{g.config_authors_max}}" data-collapse-caption="({{_('reduce')}})" aria-expanded="false">(...)</button>{% endif %}
+        {% else %}
+          {% if not loop.first %}<span>&amp;</span>{% endif %}
+          <a class="author-name" href="{{url_for('web.books_list', data='author', sort_param='stored', book_id=author.id)}}">{{author.name.replace('|',',')|shortentitle(30)}}</a>
+        {% endif %}
+      {% endfor %}
+      {% if entry.Books.data|music %}<span class="glyphicon glyphicon-music" aria-label="{{_('Audiobook')}}"></span>{% endif %}
+    </p>
+    {% if entry.Books.series.__len__() > 0 %}
+    <p class="series">
+      {% if page != "series" %}<a href="{{url_for('web.books_list', data='series', sort_param='stored', book_id=entry.Books.series[0].id)}}">{{entry.Books.series[0].name}}</a>{% else %}<span>{{entry.Books.series[0].name}}</span>{% endif %}
+      ({{entry.Books.series_index|formatfloat(2)}})
+    </p>
+    {% endif %}
+    {% if entry.Books.ratings.__len__() > 0 %}
+    <div class="rating" aria-label="{{_('Rating')}}">
+      {% for number in range((entry.Books.ratings[0].rating/2)|int(2)) %}
+        <span class="glyphicon glyphicon-star good" aria-hidden="true"></span>
+        {% if loop.last and loop.index < 5 %}
+          {% for numer in range(5 - loop.index) %}<span class="glyphicon glyphicon-star-empty" aria-hidden="true"></span>{% endfor %}
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
