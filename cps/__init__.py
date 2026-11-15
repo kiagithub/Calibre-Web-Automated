@@ -26,6 +26,8 @@ from .updater import Updater
 from . import config_sql
 from . import cache_buster
 from . import ub, db, magic_shelf
+# Register the movie model before app.db tables are created in create_app().
+from .movie_library import models as movie_models
 
 try:
     from flask_limiter import Limiter

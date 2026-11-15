@@ -1,0 +1,81 @@
+{% extends "layout.html" %}
+{% block body %}
+<main class="movie-page movie-form-page" aria-labelledby="movie-form-heading">
+  <a class="movie-back-link" href="{{ url_for('movies.detail', movie_id=movie.id) if movie else url_for('movies.index') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> {% if movie %}Back to {{ movie.title }}{% else %}Back to movies{% endif %}</a>
+  <header class="movie-form-header">
+    <span class="movie-eyebrow"><span class="glyphicon glyphicon-film" aria-hidden="true"></span> {% if movie %}Edit collection item{% else %}New collection item{% endif %}</span>
+    <h1 id="movie-form-heading">{% if movie %}Edit {{ movie.title }}{% else %}Add a movie{% endif %}</h1>
+    <p>{% if movie %}Update its metadata or the details of your physical copy.{% else %}Find it online for a quick import, or enter the details yourself.{% endif %}</p>
+  </header>
+
+  {% if errors %}<div class="alert alert-danger" role="alert"><strong>Please check the following:</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+
+  <section id="metadata-search" class="movie-metadata-panel" data-search-url="{{ url_for('movies.metadata_search') }}" {% if movie %}data-apply-url="{{ url_for('movies.metadata_apply', movie_id=movie.id) }}"{% else %}data-apply-url="{{ url_for('movies.import_movie') }}" data-import="true"{% endif %}>
+    <div class="movie-section-heading">
+      <div><span class="movie-step">Online metadata</span><h2>Find it on TMDB</h2></div>
+      <span class="movie-provider-label">Posters · cast · synopsis</span>
+    </div>
+    {% if metadata_configured %}
+    <form class="movie-metadata-search-form" novalidate>
+      <div><label class="sr-only" for="metadata-query">Movie title</label><input class="form-control" id="metadata-query" name="query" type="search" placeholder="Movie title" maxlength="200" value="{{ form.get('title', movie.title if movie else '') }}" required></div>
+      <div><label class="sr-only" for="metadata-year">Release year (optional)</label><input class="form-control" id="metadata-year" name="year" type="number" min="1870" max="2100" placeholder="Year (optional)" value="{{ movie.year if movie else '' }}"></div>
+      <button class="btn btn-primary" type="submit"><span class="glyphicon glyphicon-search" aria-hidden="true"></span> Search TMDB</button>
+    </form>
+    {% if not movie %}<div class="movie-import-defaults"><label>Format for imported copy <select id="import-format" class="form-control">{% for format in formats %}<option value="{{ format }}" {% if format == 'Blu-ray' %}selected{% endif %}>{{ format }}</option>{% endfor %}</select></label><label>Shelf / location <input id="import-location" class="form-control" maxlength="200" placeholder="e.g. Living room · Shelf 2"></label></div>{% endif %}
+    <div class="movie-metadata-results" aria-live="polite"></div>
+    {% else %}
+    <div class="movie-config-notice"><span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span><div><strong>Online lookup is not configured yet.</strong><p>Add a <code>TMDB_API_KEY</code> or <code>TMDB_READ_ACCESS_TOKEN</code> environment variable and restart the app. You can still add and edit movies manually below.</p></div></div>
+    {% endif %}
+    <p class="movie-attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+  </section>
+
+  <form method="post" enctype="multipart/form-data" class="movie-edit-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="tmdb_id" value="{{ form.get('tmdb_id', movie.tmdb_id if movie and movie.tmdb_id else '') }}">
+    <section class="movie-form-section">
+      <div class="movie-section-heading"><div><span class="movie-step">Movie details</span><h2>The film</h2></div></div>
+      <div class="movie-form-grid">
+        <div class="form-group movie-field-wide"><label for="title">Title <span aria-hidden="true">*</span></label><input class="form-control" id="title" name="title" required maxlength="300" value="{{ form.get('title', movie.title if movie else '') }}"></div>
+        <div class="form-group movie-field-wide"><label for="original_title">Original title</label><input class="form-control" id="original_title" name="original_title" maxlength="300" value="{{ form.get('original_title', movie.original_title if movie else '') }}"></div>
+        <div class="form-group"><label for="release_date">Release date</label><input class="form-control" id="release_date" name="release_date" type="date" value="{{ form.get('release_date', movie.release_date if movie else '') }}"></div>
+        <div class="form-group"><label for="runtime">Runtime (minutes)</label><input class="form-control" id="runtime" name="runtime" type="number" min="1" max="2000" value="{{ form.get('runtime', movie.runtime if movie and movie.runtime is not none else '') }}"></div>
+        <div class="form-group"><label for="director">Director</label><input class="form-control" id="director" name="director" maxlength="500" value="{{ form.get('director', movie.director if movie else '') }}"></div>
+        <div class="form-group"><label for="genres">Genres <small>Comma separated</small></label><input class="form-control" id="genres" name="genres" maxlength="500" placeholder="Drama, Adventure" value="{{ form.get('genres', movie.genres if movie else '') }}"></div>
+        <div class="form-group movie-field-wide"><label for="cast_members">Cast <small>Comma separated</small></label><input class="form-control" id="cast_members" name="cast_members" maxlength="5000" value="{{ form.get('cast_members', movie.cast_members if movie else '') }}"></div>
+        <div class="form-group"><label for="content_rating">Content rating</label><input class="form-control" id="content_rating" name="content_rating" maxlength="20" placeholder="PG-13" value="{{ form.get('content_rating', movie.content_rating if movie else '') }}"></div>
+        <div class="form-group"><label for="imdb_id">IMDb ID</label><input class="form-control" id="imdb_id" name="imdb_id" maxlength="20" placeholder="tt0133093" value="{{ form.get('imdb_id', movie.imdb_id if movie else '') }}"></div>
+        <div class="form-group movie-field-full"><label for="overview">Overview</label><textarea class="form-control" id="overview" name="overview" rows="5" maxlength="20000">{{ form.get('overview', movie.overview if movie else '') }}</textarea></div>
+      </div>
+    </section>
+
+    <section class="movie-form-section movie-physical-fields">
+      <div class="movie-section-heading"><div><span class="movie-step">Your collection</span><h2>The physical copy</h2></div><span class="movie-provider-label">Kept separate during metadata refreshes</span></div>
+      <div class="movie-form-grid">
+        <div class="form-group"><label for="media_format">Format <span aria-hidden="true">*</span></label><select class="form-control" id="media_format" name="media_format" required>{% set selected_format = form.get('media_format', movie.media_format if movie else 'Blu-ray') %}{% for format in formats %}<option value="{{ format }}" {% if selected_format == format %}selected{% endif %}>{{ format }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="location">Shelf / location</label><input class="form-control" id="location" name="location" maxlength="200" placeholder="Living room · Shelf 2" value="{{ form.get('location', movie.location if movie else '') }}"></div>
+        <div class="form-group"><label for="edition">Edition</label><input class="form-control" id="edition" name="edition" maxlength="200" placeholder="Criterion Collection" value="{{ form.get('edition', movie.edition if movie else '') }}"></div>
+        <div class="form-group"><label for="condition">Condition</label><select class="form-control" id="condition" name="condition">{% set selected_condition = form.get('condition', movie.condition if movie else 'Good') %}{% for condition in conditions %}<option value="{{ condition }}" {% if selected_condition == condition %}selected{% endif %}>{{ condition }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="barcode">Barcode / UPC</label><input class="form-control" id="barcode" name="barcode" maxlength="64" inputmode="numeric" value="{{ form.get('barcode', movie.barcode if movie else '') }}"></div>
+        <div class="form-group"><label for="date_acquired">Date acquired</label><input class="form-control" id="date_acquired" name="date_acquired" type="date" value="{{ form.get('date_acquired', movie.date_acquired if movie else '') }}"></div>
+        <div class="form-group"><label for="personal_rating">My rating <small>0–10</small></label><input class="form-control" id="personal_rating" name="personal_rating" type="number" min="0" max="10" value="{{ form.get('personal_rating', movie.personal_rating if movie and movie.personal_rating is not none else '') }}"></div>
+        <div class="form-group movie-watched-field"><label class="movie-checkbox"><input type="checkbox" name="is_watched" {% if form.get('is_watched') == 'on' or (request.method != 'POST' and movie and movie.is_watched) %}checked{% endif %}> <span>I’ve watched this movie</span></label></div>
+        <div class="form-group movie-field-full"><label for="notes">My notes</label><textarea class="form-control" id="notes" name="notes" rows="4" maxlength="10000" placeholder="Special features, lent to a friend, playback notes…">{{ form.get('notes', movie.notes if movie else '') }}</textarea></div>
+      </div>
+    </section>
+
+    <section class="movie-form-section movie-poster-upload">
+      <div class="movie-section-heading"><div><span class="movie-step">Artwork</span><h2>Poster</h2></div></div>
+      <div class="movie-poster-upload-content">
+        <img src="{{ url_for('movies.poster', movie_id=movie.id) if movie else url_for('static', filename='generic_cover.svg') }}" alt="Current poster" class="movie-form-poster-preview">
+        <div class="form-group"><label for="poster">Upload a custom poster</label><input class="form-control" id="poster" name="poster" type="file" accept="image/jpeg,image/png,image/webp"><p class="help-block">JPEG, PNG, or WebP · maximum 8 MB. Stored locally in your config volume.</p></div>
+      </div>
+    </section>
+    <div class="movie-form-actions"><button class="btn btn-primary btn-lg" type="submit"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> {% if movie %}Save changes{% else %}Add movie{% endif %}</button><a class="btn btn-default btn-lg" href="{{ url_for('movies.detail', movie_id=movie.id) if movie else url_for('movies.index') }}">Cancel</a></div>
+  </form>
+
+  {% if movie and current_user.is_authenticated and (current_user.role_delete_books() or current_user.role_admin()) %}
+  <section class="movie-danger-zone"><div><h2>Remove this copy</h2><p>Deletes this collection entry and its cached poster. Your book library is not affected.</p></div><form method="post" action="{{ url_for('movies.delete', movie_id=movie.id) }}" data-confirm="Delete {{ movie.title }} from your movie library?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger" type="submit"><span class="glyphicon glyphicon-trash" aria-hidden="true"></span> Delete movie</button></form></section>
+  {% endif %}
+</main>
+{% endblock %}
+{% block js %}<script src="{{ url_for('static', filename='js/movies.js') }}"></script>{% endblock %}

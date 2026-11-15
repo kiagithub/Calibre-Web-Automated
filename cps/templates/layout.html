@@ -25,6 +25,9 @@
       <link href="{{ url_for('static', filename='css/layout-refresh.css') }}" rel="stylesheet" media="screen">
     {% endif %}
     <link href="{{ url_for('static', filename='css/cwa.css') }}" rel="stylesheet" media="screen">
+    {% if page == 'movies' %}
+      <link href="{{ url_for('static', filename='css/movies.css') }}" rel="stylesheet" media="screen">
+    {% endif %}
     {% if current_user.is_authenticated and (current_user.role_admin() or current_user.role_edit()) %}
     <link href="{{ url_for('static', filename='css/duplicates-notifications.css') }}" rel="stylesheet" media="screen">
     {% endif %}
@@ -293,6 +296,9 @@
           <nav class="navigation">
             <ul class="list-unstyled" id="scnd-nav" intent in-standard-append="nav.navigation" in-mobile-after="#main-nav" in-mobile-class="nav navbar-nav">
               <li class="nav-head hidden-xs">{{_('Browse')}}</li>
+              <li id="nav_movies" {% if page == 'movies' %}class="active"{% endif %}>
+                <a href="{{ url_for('movies.index') }}"><span class="glyphicon glyphicon-film"></span> {{_('Movies')}}</a>
+              </li>
               {% for element in sidebar %}
                 {% if current_user.check_visibility(element['visibility']) and element['public'] %}
                     <li id="nav_{{element['id']}}" {% if page == element['page'] %}class="active"{% endif %} style="{% if element['id'] == 'duplicates' %}position: relative;{% endif %}">

@@ -1,0 +1,22 @@
+---
+services:
+  home-library:
+    build:
+      context: .
+    image: home-library:local
+    container_name: home-library
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-America/Los_Angeles}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:-}
+      TMDB_LANGUAGE: ${TMDB_LANGUAGE:-en-US}
+      NETWORK_SHARE_MODE: ${NETWORK_SHARE_MODE:-false}
+    volumes:
+      - ./data/config:/config
+      - ./data/ingest:/cwa-book-ingest
+      - ./data/calibre-library:/calibre-library
+    ports:
+      - "${LIBRARY_PORT:-8083}:8083"
+    restart: unless-stopped
