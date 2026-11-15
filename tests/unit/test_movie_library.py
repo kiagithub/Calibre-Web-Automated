@@ -10,7 +10,7 @@ from cps import ub, usermanagement
 from cps.jinjia import jinjia
 from cps.movie_library import metadata, routes
 from cps.movie_library.metadata import MovieMetadataError, TMDBClient, image_type
-from cps.movie_library.models import Movie
+from cps.movie_library.models import MOVIE_CREATED_AT_INDEX, Movie, ensure_movie_indexes
 from flask import Flask, g, jsonify, render_template
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
@@ -54,6 +54,25 @@ class FakeSession:
         if not self.responses:
             raise AssertionError("Unexpected network request")
         return self.responses.pop(0)
+
+
+@pytest.mark.unit
+def test_movie_created_at_index_is_added_to_existing_database(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'app.db'}")
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "CREATE TABLE movie (id INTEGER PRIMARY KEY, created_at DATETIME)"
+        )
+
+    ensure_movie_indexes(engine)
+    ensure_movie_indexes(engine)
+
+    with engine.connect() as connection:
+        indexes = {
+            row[1] for row in connection.exec_driver_sql("PRAGMA index_list('movie')")
+        }
+    assert MOVIE_CREATED_AT_INDEX in indexes
+    engine.dispose()
 
 
 @pytest.mark.unit

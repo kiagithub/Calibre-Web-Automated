@@ -1120,6 +1120,9 @@ def migrate_shelf_table(engine, _session):
 def migrate_Database(_session):
     engine = _session.bind
     add_missing_tables(engine, _session)
+    # ``create_all`` adds new tables but not indexes to existing feature tables.
+    from .movie_library.models import ensure_movie_indexes
+    ensure_movie_indexes(engine)
     migrate_registration_table(engine, _session)
     migrate_user_session_table(engine, _session)
     migrate_user_table(engine, _session)

@@ -46,6 +46,7 @@ Records and ratings are shared across library users, matching the movie collecti
 ### Movies and shared media safety
 
 - TMDB title/year search, metadata import, and refresh retain the existing movie workflows.
+- Movie lists sorted by "added" use an indexed `movie.created_at`; startup creates the index idempotently for existing `app.db` files as well as new ones.
 - DVD, Blu-ray, 4K UHD, VHS, LaserDisc, Digital, Other, and condition choices are validated server-side.
 - Movie and book artwork share bounded image validation, local atomic storage, safe response handling, and upload/download limits.
 - New artwork is staged before the database commit; replaced artwork is removed only after a successful commit. Failed saves roll back and discard newly staged files.
@@ -102,15 +103,105 @@ docker compose --env-file .env -f compose.home-library.yml up -d --build
 
 For another device on the same network, open `http://YOUR-COMPUTER-LAN-IP:8083`, allowing the port through the host firewall if needed. Do not expose this plain-HTTP port directly to the public internet. For remote access, use a VPN or a properly configured HTTPS reverse proxy.
 
-### Data and backups
+### Data, backups, and migration
 
-| Directory | Purpose |
+#### Where the files live
+
+| Path | Purpose |
 | --- | --- |
-| `data/config` | Users, settings, `app.db`, movie/external-book records, `movie_covers`, and `external_book_covers` |
+| `data/config/app.db` | Users, settings, and the `movie`, `external_book`, and `external_book_tag` tables |
+| `data/config/movie_covers/` | Movie posters referenced by `movie.poster_filename` |
+| `data/config/external_book_covers/` | Personal-book covers referenced by `external_book.cover_filename` |
+| `data/config/cwa.db` | CWA settings, including enabled metadata providers |
+| `data/config/` | All users, sessions, settings, and authentication data |
 | `data/ingest` | CWA book ingest drop folder; processed files are removed |
-| `data/calibre-library` | Calibre files and `metadata.db` |
+| `data/calibre-library/` | Calibre files and `metadata.db` |
 
-Back up `data/config` and `data/calibre-library` together while the container is stopped. To use an existing Calibre library, stop other Calibre/CWA processes, make a backup, and replace `./data/calibre-library` in the Compose file with its absolute path. Do not point CWA's ingest folder at the library itself.
+Inside the container, the config directory is `/config`, the Calibre library is `/calibre-library`, and the ingest folder is `/cwa-book-ingest`.
+
+Movies and personal books share `app.db`; they are not separate databases. Artwork is stored as files beside `app.db`, so the database and both cover directories must be kept together. Calibre file-backed books live in `data/calibre-library/metadata.db` plus the book files.
+
+The movie and personal-book tables are created by the application at startup; Docker only seeds a base `app.db` on first run. Running CWA outside Docker with `CALIBRE_DBPATH` or `-p /path/to/app.db` creates the same schema.
+
+#### Back up
+
+Stop the container first so SQLite and artwork writes are quiescent:
+
+```bash
+docker compose -f compose.home-library.yml down
+tar -czf cwa-home-library-$(date +%F).tar.gz data/config data/calibre-library
+```
+
+For only movies and personal books:
+
+```bash
+docker compose -f compose.home-library.yml down
+tar -czf cwa-media-$(date +%F).tar.gz \
+  data/config/app.db \
+  data/config/movie_covers \
+  data/config/external_book_covers
+```
+
+A backup containing only `app.db` restores the records but leaves covers broken, because each record stores an artwork filename.
+
+The project `.env` file is outside `data/`; copy it separately if you want to preserve TMDB/provider credentials and the `PUID`/`PGID` settings.
+
+#### Restore or move to another system
+
+1. Copy the archive to the new system and extract it.
+2. Point the Compose volumes at the restored directories:
+
+   ```yaml
+   volumes:
+     - /path/to/restored/config:/config
+     - /path/to/restored/calibre-library:/calibre-library
+   ```
+
+3. Ensure the container user can read and write the files. The default Compose user is `PUID=1000` and `PGID=1000`:
+
+   ```bash
+   sudo chown -R 1000:1000 /path/to/restored/config
+   ```
+
+4. Start the same or a newer CWA version. Startup creates missing tables and runs the migration pass automatically, including the `movie.created_at` index.
+
+Restore with the same or a newer app version than the one that produced the backup. Migrations are forward-only; restoring a newer `app.db` into an older build is unsupported.
+
+#### Move only movies and personal books
+
+There is no built-in export/import UI yet; import/export remains a separate feature. To copy only the media tables into a fresh `app.db`, leaving the target's users and settings untouched:
+
+1. Start the target app once so it creates the empty tables, then stop it.
+2. Copy the tables with SQLite:
+
+   ```bash
+   sqlite3 /path/to/target/app.db <<'SQL'
+   ATTACH DATABASE '/path/to/source/app.db' AS src;
+   BEGIN;
+   INSERT INTO movie SELECT * FROM src.movie;
+   INSERT INTO external_book SELECT * FROM src.external_book;
+   INSERT INTO external_book_tag SELECT * FROM src.external_book_tag;
+   COMMIT;
+   DETACH DATABASE src;
+   SQL
+   ```
+
+3. Copy `movie_covers/` and `external_book_covers/` beside the target `app.db`.
+
+The target should be empty, or IDs can collide. `external_book_tag` references `external_book.id`, so books must be inserted before tags. Artwork filenames in the database must match the copied cover directories. Both databases should use the same or a compatible CWA schema version; otherwise migrate the source first and repeat the copy.
+
+#### Live backup
+
+If the container cannot be stopped, SQLite can take a consistent snapshot of the database while running:
+
+```bash
+docker compose -f compose.home-library.yml exec home-library \
+  sqlite3 /config/app.db ".backup '/config/app-backup-live.db'"
+```
+
+Then copy `app-backup-live.db` plus both artwork directories. The snapshot is consistent for the database, but the database and artwork are not captured atomically, so stopping the container is safer for a complete backup.
+
+To use an existing Calibre library, stop other Calibre/CWA processes, make a backup, and replace `./data/calibre-library` in the Compose file with its absolute path. Do not point CWA's ingest folder at the library itself.
 
 ### TMDB setup
 
@@ -186,7 +277,6 @@ A full browser check should exercise Home, Books, Movies, add/edit/delete, metad
 These are documented rather than started during the current stabilization pass:
 
 - Replace numbered mixed-source pagination with keyset pagination only if a future UI can drop arbitrary page-number jumps. The current recent-first merge preserves numbered pages and exact totals, but later pages read a larger bounded prefix from each source.
-- Add an explicit `movie.created_at` index migration if movie collections become large; updating only the model would not migrate existing databases.
 - Consolidate remaining legacy/movie/external CSS aliases and duplicate selectors after the shared component behavior is stable.
 - Extract more shared form parsers and parameterize the two metadata-search DOM lifecycles only when that can be done without obscuring their different provider workflows.
 - Isolate legacy tests that replace global `cps` modules in `sys.modules`; a single-process full-unit run is order-dependent, while the CI-style xdist run avoids the contamination.

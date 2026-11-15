@@ -5,11 +5,27 @@ from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
 
+from .. import logger
 from ..ub import Base
+
+MOVIE_CREATED_AT_INDEX = "ix_movie_created_at"
+log = logger.create()
 
 
 def utc_now():
     return datetime.now(timezone.utc)
+
+
+def ensure_movie_indexes(engine):
+    """Add indexes that ``create_all`` cannot apply to pre-existing tables."""
+    try:
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                f"CREATE INDEX IF NOT EXISTS {MOVIE_CREATED_AT_INDEX} "
+                "ON movie (created_at)"
+            )
+    except Exception as exc:
+        log.error("Could not ensure movie indexes: %s", exc)
 
 
 class Movie(Base):
@@ -43,7 +59,7 @@ class Movie(Base):
 
     poster_filename = Column(String(100), default="")
     metadata_updated_at = Column(DateTime)
-    created_at = Column(DateTime, nullable=False, default=utc_now)
+    created_at = Column(DateTime, nullable=False, default=utc_now, index=True)
     updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
 
     @property
