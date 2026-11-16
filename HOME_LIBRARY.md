@@ -15,6 +15,7 @@ Home Library extends [Calibre-Web-Automated](https://github.com/crocodilestick/C
 - The global search box searches the combined book catalog: Calibre files and personal books. Movie search remains on the Movies page.
 - Shared cards use one detail link, consistent 2:3 artwork, responsive grids, visible keyboard focus, and aligned controls.
 - Movie, personal-book, and shared pages use grouped selectors in `cps/static/css/media.css`; component-specific overrides stay scoped to their variant.
+- The application favicon is a teal book-and-play mark with SVG, multi-size ICO, and Apple touch assets.
 - Existing Calibre quick actions use native Read, read-status, Edit, and Send buttons outside the cover link. They work with keyboard and touch instead of depending on mouse coordinates or hover alone.
 - Legacy `/page/<n>` book links redirect to the existing Calibre newest-book list. Query-string pagination preserves filters and no longer reuses the old page number.
 
@@ -274,8 +275,28 @@ Feature-specific coverage lives in:
 - `tests/unit/test_keyset_pagination.py` covers cursor encoding and the Previous/Next pagination controls
 - `tests/unit/test_book_card_accessibility.py`, `test_jinjia_filters.py`, and `test_route_auth.py`
 - `tests/unit/test_env_example.py` and `test_hardcover_headers.py`
+- `tests/unit/test_favicon.py` covers the SVG brand mark, ICO sizes, PNG dimensions, and template fallback order
+
+Known pre-existing failures in the current environment:
+
+- `tests/unit/test_oauth_session.py` has three stale tests that call removed `*_logged_in` functions.
+- `tests/unit/test_ingest_watchers.py::test_ingest_service_shell_script` is environment-specific.
+
+The suite is order-independent and currently reports 444 passed, 18 skipped, 4 failed (the failures above).
 
 A full browser check should exercise Home, Books, Movies, add/edit/delete, metadata selection, filters, collapsed navigation, keyboard focus, and desktop/mobile overflow against an isolated Docker config/library.
+
+## Current status
+
+- The Home Library features above are implemented on `feature/physical-movies` and pushed to `origin`.
+- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, and the book-and-play favicon.
+
+## Optional follow-ups
+
+- Open a pull request from `feature/physical-movies`.
+- Run the full browser check described under Development checks against an isolated Docker config/library.
+- Exercise keyset Previous/Next against a test library with more than 24 books; cursor behavior and link generation are covered by unit tests, but a multi-page live check remains.
+- Repair the pre-existing OAuth and ingest-shell test failures listed under Development checks.
 
 ## Deliberately deferred clean-cut improvements
 
