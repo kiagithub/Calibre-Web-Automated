@@ -7,13 +7,14 @@ Home Library extends [Calibre-Web-Automated](https://github.com/crocodilestick/C
 ### Home and navigation
 
 - Home has independent **Books** and **Movies** rows with recent items and source-specific detail links.
-- **Books** combines Calibre and personal records in a recent-first, paginated catalog.
+- **Books** combines Calibre and personal records in a recent-first catalog with cursor-based Previous/Next pagination. Numbered page jumps are not offered; legacy `?page=N` links redirect to the first page.
 - **Calibre library** retains the existing Calibre lists, sorting, filters, file actions, shelves, and specialized views.
 - **Personal books** provides dedicated management for records without Calibre files.
 - **Movies** retains the existing physical-movie shelf.
 - The sidebar emphasizes Home, Books, and Movies. Secondary book destinations and shelves remain available in keyboard-native collapsible groups, with existing visibility preferences preserved.
-- The global search box is explicitly Calibre-only; it does not claim to search personal books or movies.
+- The global search box searches the combined book catalog: Calibre files and personal books. Movie search remains on the Movies page.
 - Shared cards use one detail link, consistent 2:3 artwork, responsive grids, visible keyboard focus, and aligned controls.
+- Movie, personal-book, and shared pages use grouped selectors in `cps/static/css/media.css`; component-specific overrides stay scoped to their variant.
 - Existing Calibre quick actions use native Read, read-status, Edit, and Send buttons outside the cover link. They work with keyboard and touch instead of depending on mouse coordinates or hover alone.
 - Legacy `/page/<n>` book links redirect to the existing Calibre newest-book list. Query-string pagination preserves filters and no longer reuses the old page number.
 
@@ -269,6 +270,8 @@ Feature-specific coverage lives in:
 - `tests/unit/test_metadata_search.py` covers provider deadline handling and result caching
 - `tests/unit/test_external_book_thumbnails.py` covers thumbnail URL policy, resizing fallback, caching, and failures
 - `tests/unit/test_catalog_read_models.py`, `test_catalog_service.py`, and `test_catalog_routes.py`
+- `tests/unit/test_search_routes.py` covers routing the global search into the combined book catalog
+- `tests/unit/test_keyset_pagination.py` covers cursor encoding and the Previous/Next pagination controls
 - `tests/unit/test_book_card_accessibility.py`, `test_jinjia_filters.py`, and `test_route_auth.py`
 - `tests/unit/test_env_example.py` and `test_hardcover_headers.py`
 
@@ -278,7 +281,5 @@ A full browser check should exercise Home, Books, Movies, add/edit/delete, metad
 
 These are documented rather than started during the current stabilization pass:
 
-- Replace numbered mixed-source pagination with keyset pagination only if a future UI can drop arbitrary page-number jumps. The current recent-first merge preserves numbered pages and exact totals, but later pages read a larger bounded prefix from each source.
-- Consolidate remaining legacy/movie/external CSS aliases and duplicate selectors after the shared component behavior is stable.
 - Consider a shared artwork-replacement transaction object only if another media collection needs it; routes currently own database commits and use the tested shared artwork primitives.
-- Per-user watched/read state, private collections, loans, barcode scanning, import/export, additional movie providers, and unified global search remain separate features.
+- Per-user watched/read state, private collections, loans, barcode scanning, import/export, additional movie providers, and a movie-inclusive global search remain separate features.

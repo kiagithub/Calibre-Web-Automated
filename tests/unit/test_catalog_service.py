@@ -74,7 +74,7 @@ def add_external(session, title, timestamp, media_type="physical", tags=None):
 
 @pytest.mark.unit
 class TestCombinedCatalog:
-    def test_pages_merge_sources_without_collisions_or_omissions(self, catalog_db):
+    def test_keyset_pages_merge_sources_without_collisions_or_omissions(self, catalog_db):
         calibre_session, app_session, _ = catalog_db
         start = datetime(2026, 1, 1, tzinfo=timezone.utc)
         for index in range(5):
@@ -83,25 +83,66 @@ class TestCombinedCatalog:
         calibre_session.commit()
         app_session.commit()
 
-        first = service.combined_books(page=1, per_page=4)
-        second = service.combined_books(page=2, per_page=4)
-        third = service.combined_books(page=3, per_page=4)
+        first = service.combined_books(per_page=4)
+        second = service.combined_books(cursor=first.next_cursor, per_page=4)
+        third = service.combined_books(cursor=second.next_cursor, per_page=4)
 
         assert first.total == second.total == third.total == 10
-        assert first.page == 1 and second.page == 2 and third.page == 3
+        assert first.has_next and not first.has_prev
+        assert second.has_prev and second.has_next
+        assert third.has_prev and not third.has_next
         assert [len(result.cards) for result in (first, second, third)] == [4, 4, 2]
         keys = [(card.source, card.id) for result in (first, second, third) for card in result.cards]
         assert len(keys) == len(set(keys)) == 10
         assert ("calibre", 1) in keys and ("external", 1) in keys
         assert first.cards[0].title == "External 4"
 
-    def test_out_of_range_page_uses_last_page_and_preserves_requested(self, catalog_db):
+    def test_previous_cursor_returns_the_prior_page(self, catalog_db):
+        calibre_session, app_session, _ = catalog_db
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for index in range(4):
+            add_external(app_session, f"External {index}", start + timedelta(days=index))
+        app_session.commit()
+
+        first = service.combined_books(per_page=2)
+        second = service.combined_books(cursor=first.next_cursor, per_page=2)
+        back = service.combined_books(
+            cursor=second.prev_cursor, direction="prev", per_page=2
+        )
+
+        assert [(card.source, card.id) for card in back.cards] == [
+            (card.source, card.id) for card in first.cards
+        ]
+        assert back.has_prev is False
+        assert back.has_next is True
+
+    def test_previous_cursor_handles_equal_timestamps_across_sources(self, catalog_db):
+        calibre_session, app_session, _ = catalog_db
+        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for index in range(2):
+            add_calibre(calibre_session, f"Calibre {index}", when)
+            add_external(app_session, f"External {index}", when)
+        calibre_session.commit()
+        app_session.commit()
+
+        first = service.combined_books(per_page=2)
+        second = service.combined_books(cursor=first.next_cursor, per_page=2)
+        back = service.combined_books(
+            cursor=second.prev_cursor, direction="prev", per_page=2
+        )
+
+        assert [card.title for card in first.cards] == ["External 1", "External 0"]
+        assert [card.title for card in second.cards] == ["Calibre 1", "Calibre 0"]
+        assert [card.title for card in back.cards] == [card.title for card in first.cards]
+
+    def test_invalid_cursor_starts_at_the_first_page(self, catalog_db):
         calibre_session, app_session, _ = catalog_db
         add_calibre(calibre_session, "Only", datetime(2026, 1, 1))
         calibre_session.commit()
-        result = service.combined_books(page=99, per_page=24)
+        result = service.combined_books(cursor="not-a-cursor", per_page=24)
         assert result.total == 1
-        assert result.page == 1
+        assert result.has_prev is False
+        assert result.has_next is False
         assert result.cards[0].title == "Only"
 
     def test_filters_apply_to_equivalent_sources(self, catalog_db):
@@ -133,7 +174,7 @@ class TestCombinedCatalog:
 
     def test_available_tags_include_visible_calibre_and_external_tags(self, catalog_db):
         calibre_session, app_session, fake_calibre = catalog_db
-        visible = add_calibre(calibre_session, "Visible", datetime(2026, 1, 1), tags=["Shared"])
+        add_calibre(calibre_session, "Visible", datetime(2026, 1, 1), tags=["Shared"])
         hidden = add_calibre(calibre_session, "Hidden", datetime(2026, 1, 2), tags=["Secret"])
         add_external(app_session, "External", datetime(2026, 1, 3), tags=["Owned", "shared"])
         calibre_session.commit()

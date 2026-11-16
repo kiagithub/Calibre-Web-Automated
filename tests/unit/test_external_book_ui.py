@@ -137,3 +137,11 @@ def test_external_book_metadata_results_show_lazy_cover_thumbnails():
     assert 'cover.loading = "lazy"' in script
     assert 'cover.decoding = "async"' in script
     assert ".innerHTML" not in script
+
+
+def test_metadata_thumbnail_css_overrides_the_legacy_container_image_rule():
+    css = (REPO_ROOT / "cps" / "static" / "css" / "media.css").read_text(encoding="utf-8")
+
+    assert ".external-books-page .external-books-metadata-result-cover" in css
+    assert "max-width: 60px" in css
+    assert "box-shadow: none" in css

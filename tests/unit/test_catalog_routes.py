@@ -64,8 +64,11 @@ def catalog_app(monkeypatch):
         template=template,
         entries=[entry.title for entry in context.get("entries", [])],
         total=context.get("total"),
-        page=context.get("pagination").page if context.get("pagination") else None,
-        pages=context.get("pagination").pages if context.get("pagination") else None,
+        pagination={
+            "keyset": getattr(context["pagination"], "keyset", False),
+            "prev_url": getattr(context["pagination"], "prev_url", None),
+            "next_url": getattr(context["pagination"], "next_url", None),
+        } if context.get("pagination") else None,
     ))
     monkeypatch.setattr(routes, "available_tags", lambda: [])
     yield app
@@ -74,19 +77,28 @@ def catalog_app(monkeypatch):
 
 
 @pytest.mark.unit
-def test_combined_catalog_route_renders_cards_and_pagination(catalog_app, monkeypatch):
-    result = CatalogResult([SimpleNamespace(title="Book")], total=50, page=2, per_page=24)
+def test_combined_catalog_route_renders_cards_and_cursor_pagination(catalog_app, monkeypatch):
+    result = CatalogResult(
+        [SimpleNamespace(title="Book")], total=50, per_page=24,
+        next_cursor="next-cursor", has_next=True,
+    )
     monkeypatch.setattr(routes, "combined_books", lambda **_kwargs: result)
-    response = catalog_app.test_client().get("/books/?page=2&q=Arrival&source=all")
+    response = catalog_app.test_client().get("/books/?q=Arrival&source=all")
     payload = response.get_json()
     assert response.status_code == 200
-    assert payload == {"template": "catalog/index.html", "entries": ["Book"], "total": 50, "page": 2, "pages": 3}
+    assert payload["template"] == "catalog/index.html"
+    assert payload["entries"] == ["Book"]
+    assert payload["total"] == 50
+    pagination = payload["pagination"]
+    assert pagination["keyset"] is True
+    assert pagination["prev_url"] is None
+    assert "cursor=next-cursor" in pagination["next_url"]
+    assert "dir=next" in pagination["next_url"]
+    assert "q=Arrival" in pagination["next_url"]
 
 
 @pytest.mark.unit
-def test_combined_catalog_final_page_redirect_preserves_filters(catalog_app, monkeypatch):
-    result = CatalogResult([], total=25, page=2, per_page=24)
-    monkeypatch.setattr(routes, "combined_books", lambda **_kwargs: result)
+def test_legacy_page_parameter_redirects_to_first_page(catalog_app):
     response = catalog_app.test_client().get(
         "/books/?page=99&q=Arrival&source=external&media_type=kindle&tag=Owned"
     )
@@ -94,8 +106,24 @@ def test_combined_catalog_final_page_redirect_preserves_filters(catalog_app, mon
     assert response.status_code == 302
     assert parse_qs(parsed.query) == {
         "q": ["Arrival"], "source": ["external"], "media_type": ["kindle"],
-        "tag": ["Owned"], "page": ["2"],
+        "tag": ["Owned"],
     }
+
+
+@pytest.mark.unit
+def test_combined_catalog_route_forwards_cursor_and_direction(catalog_app, monkeypatch):
+    captured = {}
+
+    def fake_combined_books(**kwargs):
+        captured.update(kwargs)
+        return CatalogResult([], total=0, per_page=24)
+
+    monkeypatch.setattr(routes, "combined_books", fake_combined_books)
+    response = catalog_app.test_client().get("/books/?cursor=abc&dir=prev")
+
+    assert response.status_code == 200
+    assert captured["cursor"] == "abc"
+    assert captured["direction"] == "prev"
 
 
 @pytest.mark.unit

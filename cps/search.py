@@ -45,7 +45,7 @@ def simple_search():
                 )
             except Exception as e:
                 log.debug(f"Failed to log search activity: {e}")
-        return redirect(url_for('web.books_list', data="search", sort_param='stored', query=term.strip()))
+        return redirect(url_for('catalog.index', q=term.strip()))
     else:
         return render_title_template('search.html',
                                      searchterm="",

@@ -44,8 +44,7 @@
 
 /* Headers and collection shelves */
 .media-header,
-.external-books-header,
-.external-books-form-header {
+.external-books-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -650,11 +649,14 @@
 .movie-metadata-result,
 .external-books-metadata-result {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: 20px;
   padding: 18px 0;
   border-top: 1px solid var(--media-border);
+}
+
+.movie-metadata-result {
+  align-items: center;
 }
 
 .movie-metadata-result-copy,
@@ -670,13 +672,16 @@
   flex: 1 1 auto;
 }
 
-.external-books-metadata-result-cover {
+.external-books-page .external-books-metadata-result-cover {
   flex: 0 0 auto;
   width: 60px;
+  max-width: 60px;
   height: 90px;
+  margin: 0;
   border: 1px solid var(--media-border);
   border-radius: 6px;
   background: var(--media-surface-soft);
+  box-shadow: none;
   object-fit: cover;
 }
 
@@ -840,8 +845,7 @@
   object-fit: cover;
 }
 
-.external-books-detail-cover > .external-books-badge,
-.movie-physical-summary > .movie-format-badge {
+.external-books-detail-cover > .external-books-badge {
   margin-top: 18px;
 }
 
@@ -939,10 +943,8 @@
 }
 
 .external-books-description,
-.external-books-notes,
 .external-books-ownership,
-.movie-overview,
-.movie-notes {
+.movie-overview {
   padding-top: 24px;
   border-top: 1px solid var(--media-border);
 }
