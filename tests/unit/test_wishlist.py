@@ -9,7 +9,8 @@ from sqlalchemy.pool import StaticPool
 
 from cps import ub, usermanagement
 from cps.external_books.models import ExternalBook
-from cps.wishlist import notifications, service
+from cps.media.links import library_links
+from cps.wishlist import hardcover_sync, notifications, service
 from cps.wishlist.models import MediaRequest
 from cps.wishlist.routes import wishlist
 
@@ -167,6 +168,77 @@ class TestWishlist:
         assert response.status_code == 200
         assert any("open requests" in error for error in response.get_json()["errors"])
         assert session.query(MediaRequest).count() == 1
+
+    def test_per_user_policy_blocks_requests(self, wishlist_app):
+        app, session, _user, _events = wishlist_app
+        session.add(ub.User(
+            id=1, name="Test user", email="test@example.com", role=0,
+            view_settings={"wishlist": {"requests_allowed": False}},
+        ))
+        session.commit()
+
+        response = app.test_client().post("/wishlist/new", data=request_data())
+
+        assert response.status_code == 200
+        assert any("disabled" in error for error in response.get_json()["errors"])
+        assert session.query(MediaRequest).count() == 0
+
+    def test_admin_policy_page_updates_user_settings(self, wishlist_app):
+        app, session, _user, _events = wishlist_app
+        user = ub.User(id=1, name="Test user", email="test@example.com", role=0)
+        session.add(user)
+        session.commit()
+
+        response = app.test_client().post("/wishlist/policies", data={
+            "max_pending_1": "5",
+            "requests_allowed_1": "on",
+        })
+
+        assert response.status_code == 302
+        session.refresh(user)
+        assert user.view_settings["wishlist"]["max_pending"] == 5
+        assert user.view_settings["wishlist"]["requests_allowed"] is True
+
+    def test_notification_preference_can_be_disabled(self, wishlist_app):
+        app, session, _user, _events = wishlist_app
+        user = ub.User(id=1, name="Test user", email="test@example.com", role=0)
+        session.add(user)
+        session.commit()
+
+        response = app.test_client().post("/wishlist/notifications", data={})
+
+        assert response.status_code == 302
+        session.refresh(user)
+        assert user.view_settings["wishlist_notifications"] is False
+
+    def test_hardcover_sync_creates_and_deduplicates_requests(self, wishlist_app, monkeypatch):
+        app, session, _user, _events = wishlist_app
+        user = ub.User(
+            id=1, name="Test user", email="test@example.com", role=0,
+            hardcover_token="token",
+        )
+        session.add(user)
+        session.commit()
+        monkeypatch.setattr(
+            hardcover_sync, "fetch_shelf_books",
+            lambda token, status_id: [{"id": 42, "title": "Dune"}],
+        )
+        monkeypatch.setattr(hardcover_sync, "_owned", lambda *args: False)
+
+        first = hardcover_sync.sync_user(user)
+        second = hardcover_sync.sync_user(user)
+
+        assert first["created"] == 1
+        assert second["created"] == 0
+        entry = session.query(MediaRequest).one()
+        assert entry.metadata_provider == "hardcover"
+        assert entry.metadata_id == "42"
+
+    def test_library_links_are_validated(self, monkeypatch):
+        monkeypatch.setenv("PLEX_URL", "https://plex.example")
+        monkeypatch.setenv("JELLYFIN_URL", "javascript:alert(1)")
+        links = library_links()
+        assert [link["label"] for link in links] == ["Plex"]
 
     def test_fulfill_links_the_created_book(self, wishlist_app):
         app, session, user, _events = wishlist_app

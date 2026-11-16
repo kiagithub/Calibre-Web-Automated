@@ -45,6 +45,25 @@ def visible_requests(user, status="", content_type=""):
     return query.order_by(MediaRequest.created_at.desc(), MediaRequest.id.desc())
 
 
+def _wishlist_settings(user_id):
+    user = ub.session.get(ub.User, user_id)
+    settings = getattr(user, "view_settings", None) or {}
+    wishlist = settings.get("wishlist", {}) if isinstance(settings, dict) else {}
+    return wishlist if isinstance(wishlist, dict) else {}
+
+
+def requests_allowed(user_id):
+    return bool(_wishlist_settings(user_id).get("requests_allowed", True))
+
+
+def max_pending_for(user_id):
+    try:
+        value = int(_wishlist_settings(user_id).get("max_pending", MAX_PENDING_REQUESTS))
+    except (TypeError, ValueError):
+        value = MAX_PENDING_REQUESTS
+    return max(1, min(value, 100))
+
+
 def pending_count(user_id):
     return (
         ub.session.query(MediaRequest)
@@ -75,9 +94,12 @@ def create_request(
     title = " ".join(str(title or "").split())[:300]
     if not title:
         raise RequestError("Title is required.")
-    if pending_count(user_id) >= MAX_PENDING_REQUESTS:
+    if not requests_allowed(user_id):
+        raise RequestError("Requests are disabled for this account.")
+    max_pending = max_pending_for(user_id)
+    if pending_count(user_id) >= max_pending:
         raise RequestError(
-            f"You already have {MAX_PENDING_REQUESTS} open requests. "
+            f"You already have {max_pending} open requests. "
             "Wait for one to be reviewed before adding another."
         )
     existing = (

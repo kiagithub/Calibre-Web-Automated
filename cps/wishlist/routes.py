@@ -4,8 +4,10 @@
 import re
 
 from flask import Blueprint, abort, flash, jsonify, redirect, request, url_for
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm.attributes import flag_modified
 
-from .. import ub
+from .. import constants, ub
 from ..cw_login import current_user
 from ..media.permissions import media_edit_required, media_permissions
 from ..pagination import Pagination
@@ -177,6 +179,96 @@ def reopen(request_id):
         flash(str(exc), "error")
     else:
         flash("Request reopened.", "success")
+    return redirect(url_for("wishlist.index"))
+
+
+@wishlist.route("/notifications", methods=["GET", "POST"])
+@user_login_required
+def notification_settings():
+    user = ub.session.get(ub.User, current_user.id)
+    if request.method == "POST":
+        settings = dict(user.view_settings or {})
+        settings["wishlist_notifications"] = request.form.get("wishlist_notifications") == "on"
+        user.view_settings = settings
+        flag_modified(user, "view_settings")
+        try:
+            ub.session.commit()
+        except SQLAlchemyError:
+            ub.session.rollback()
+            flash("Notification preferences could not be saved.", "error")
+        else:
+            flash("Notification preferences saved.", "success")
+        return redirect(url_for("wishlist.notification_settings"))
+    enabled = (user.view_settings or {}).get("wishlist_notifications", True)
+    return render_title_template(
+        "wishlist/notifications.html",
+        title="Notifications",
+        page="wishlist",
+        enabled=enabled,
+    )
+
+
+@wishlist.route("/policies", methods=["GET", "POST"])
+@user_login_required
+@media_edit_required
+def policies():
+    users = (
+        ub.session.query(ub.User)
+        .filter(ub.User.role != constants.ROLE_ANONYMOUS)
+        .order_by(ub.User.name)
+        .all()
+    )
+    if request.method == "POST":
+        for user in users:
+            settings = dict(user.view_settings or {})
+            wishlist_settings = dict(settings.get("wishlist", {}) or {})
+            raw = request.form.get(f"max_pending_{user.id}")
+            if raw is not None:
+                try:
+                    wishlist_settings["max_pending"] = max(1, min(int(raw), 100))
+                except (TypeError, ValueError):
+                    pass
+            wishlist_settings["requests_allowed"] = (
+                request.form.get(f"requests_allowed_{user.id}") == "on"
+            )
+            settings["wishlist"] = wishlist_settings
+            user.view_settings = settings
+            flag_modified(user, "view_settings")
+        try:
+            ub.session.commit()
+        except SQLAlchemyError:
+            ub.session.rollback()
+            flash("Request policies could not be saved.", "error")
+        else:
+            flash("Request policies saved.", "success")
+        return redirect(url_for("wishlist.policies"))
+    return render_title_template(
+        "wishlist/policies.html",
+        title="Request policies",
+        page="wishlist",
+        users=users,
+        max_pending_for=service.max_pending_for,
+        requests_allowed=service.requests_allowed,
+    )
+
+
+@wishlist.route("/hardcover-sync", methods=["POST"])
+@user_login_required
+@media_edit_required
+def hardcover_sync():
+    from .hardcover_sync import sync_user
+
+    shelf = request.form.get("shelf", "want-to-read")
+    content_type = request.form.get("content_type", "book")
+    try:
+        result = sync_user(current_user, shelf, content_type)
+    except Exception as exc:
+        flash(f"Hardcover sync failed: {exc}", "error")
+    else:
+        flash(
+            f"Hardcover sync: {result['created']} added, {result['skipped']} skipped.",
+            "success",
+        )
     return redirect(url_for("wishlist.index"))
 
 

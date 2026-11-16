@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block body %}
+<main class="media-page" aria-labelledby="notification-settings-heading">
+  <a class="media-back-link" href="{{ url_for('web.profile') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> {{ _('Back to account') }}</a>
+  <header class="media-header media-form-header">
+    <div>
+      <span class="media-eyebrow">{{ _('Account') }}</span>
+      <h1 id="notification-settings-heading">{{ _('Notifications') }}</h1>
+      <p>{{ _('Choose whether wishlist decisions are emailed to you.') }}</p>
+    </div>
+  </header>
+  <form method="post" action="{{ url_for('wishlist.notification_settings') }}" class="media-panel media-form-section">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="media-checkbox"><input type="checkbox" name="wishlist_notifications"{% if enabled %} checked{% endif %}> {{ _('Email me when my requests are approved, rejected, or fulfilled') }}</label>
+    <div class="media-form-actions">
+      <button class="btn btn-primary" type="submit">{{ _('Save preferences') }}</button>
+    </div>
+  </form>
+</main>
+{% endblock %}

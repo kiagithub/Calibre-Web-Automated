@@ -7,7 +7,10 @@
       <h1 id="wishlist-heading">{{ _('Wishlist') }}</h1>
       <p>{{ _('Request books, audiobooks, or movies for an admin to review.') }}</p>
     </div>
-    <a class="btn btn-primary" href="{{ url_for('wishlist.new') }}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> {{ _('New request') }}</a>
+    <div class="media-header-actions">
+      <a class="btn btn-primary" href="{{ url_for('wishlist.new') }}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> {{ _('New request') }}</a>
+      {% if can_edit_media %}<a class="btn btn-default" href="{{ url_for('wishlist.policies') }}">{{ _('Request policies') }}</a>{% endif %}
+    </div>
   </header>
 
   <section class="media-toolbar" aria-label="{{ _('Filter wishlist') }}">
@@ -31,6 +34,34 @@
     </form>
     <p class="media-total">{{ total }} {{ _('request') if total == 1 else _('requests') }}</p>
   </section>
+
+  {% if can_edit_media %}
+  <section class="media-panel media-form-section">
+    <div class="media-section-heading"><div><h2>{{ _('Import from Hardcover') }}</h2></div></div>
+    <p class="help-block">{{ _('Requires a Hardcover token on your account or HARDCOVER_TOKEN in the environment.') }}</p>
+    <form method="post" action="{{ url_for('wishlist.hardcover_sync') }}" class="media-form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label for="hardcover-shelf">{{ _('Shelf') }}</label>
+        <select class="form-control" id="hardcover-shelf" name="shelf">
+          <option value="want-to-read">{{ _('Want to read') }}</option>
+          <option value="currently-reading">{{ _('Currently reading') }}</option>
+          <option value="read">{{ _('Read') }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="hardcover-type">{{ _('Request as') }}</label>
+        <select class="form-control" id="hardcover-type" name="content_type">
+          <option value="book">{{ _('Book') }}</option>
+          <option value="audiobook">{{ _('Audiobook') }}</option>
+        </select>
+      </div>
+      <div class="form-group media-field-full">
+        <button class="btn btn-default" type="submit">{{ _('Sync now') }}</button>
+      </div>
+    </form>
+  </section>
+  {% endif %}
 
   {% if entries %}
   <section class="wishlist-list" aria-label="{{ _('Wishlist requests') }}">

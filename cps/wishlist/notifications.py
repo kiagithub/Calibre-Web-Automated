@@ -37,11 +37,18 @@ def send_email(subject, text, recipients):
     threading.Thread(target=deliver, daemon=True).start()
 
 
+def _wants_notifications(user):
+    if user is None:
+        return True
+    settings = getattr(user, "view_settings", None) or {}
+    return bool(settings.get("wishlist_notifications", True))
+
+
 def admin_emails():
     return [
         user.email
         for user in ub.session.query(ub.User).all()
-        if user.email and user.role_admin()
+        if user.email and user.role_admin() and _wants_notifications(user)
     ]
 
 
@@ -57,7 +64,13 @@ def notify_request(event, request, note=""):
             admin_emails(),
         )
         return
-    recipients = [request.requester.email] if request.requester and request.requester.email else []
+    recipients = (
+        [request.requester.email]
+        if request.requester
+        and request.requester.email
+        and _wants_notifications(request.requester)
+        else []
+    )
     if event == "approved":
         subject = f"Request approved: {title}"
         body = f"Your {kind.lower()} request “{title}” was approved."

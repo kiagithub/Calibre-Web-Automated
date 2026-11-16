@@ -93,6 +93,9 @@ def main():
     app.register_blueprint(catalog)
     app.register_blueprint(wishlist)
     app.register_blueprint(media_api)
+
+    from .media.links import library_links
+    app.context_processor(lambda: {"library_links": library_links()})
     if kobo_available:
         app.register_blueprint(kobo)
         app.register_blueprint(kobo_auth)

@@ -63,6 +63,24 @@ Remaining Phase 2 follow-ups:
 - Per-user request policies and overrides (planned for Phase 3).
 - URL-persisted `owned` filter and `search_by` selector from Phase 1.
 
+## Implementation status — Phase 3 (2026-11-15)
+
+Phase 3 is implemented on the `shelfmark` branch:
+
+- Optional companion-library links (`AUDIOBOOKSHELF_URL`, `PLEX_URL`, `JELLYFIN_URL`, `GRIMMORY_URL`) in the profile menu.
+- Manual Hardcover shelf import on the Wishlist page, skipping owned and already-requested books.
+- Scheduled Hardcover shelf import through `HARDCOVER_SYNC_ENABLED`, `HARDCOVER_SYNC_SHELF`, `HARDCOVER_SYNC_CONTENT_TYPE`, and `HARDCOVER_SYNC_INTERVAL_HOURS`.
+- Per-user notification opt-out on the Notifications page.
+- Admin Request Policies page for per-user open-request limits and allowing/disabling requests.
+- Tests for policies, notification preferences, Hardcover sync deduplication, and library-link validation.
+
+Remaining Phase 3/4 follow-ups:
+
+- Optional Audiobookshelf ownership provider.
+- Apprise/multi-route notifications.
+- URL-persisted `owned` filter and `search_by` selector.
+- Custom post-fulfilment hooks, only if a concrete need appears.
+
 ---
 
 ## 2. Goals and non-goals

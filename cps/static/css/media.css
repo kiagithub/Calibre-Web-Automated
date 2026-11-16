@@ -1111,6 +1111,12 @@ body:not(.blur) .external-books-page {
 }
 
 /* Wishlist */
+.media-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .wishlist-list {
   display: grid;
   gap: 16px;

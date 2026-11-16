@@ -140,7 +140,11 @@
                     {% if not current_user.is_anonymous %}
                     <li><a href="{{ url_for('media_api.stats_page') }}"><span class="glyphicon glyphicon-stats"></span> {{ _('Collection stats') }}</a></li>
                     <li><a href="{{ url_for('media_api.api_keys') }}"><span class="glyphicon glyphicon-lock"></span> {{ _('API keys') }}</a></li>
+                    <li><a href="{{ url_for('wishlist.notification_settings') }}"><span class="glyphicon glyphicon-bell"></span> {{ _('Notifications') }}</a></li>
                     {% endif %}
+                    {% for link in library_links|default([]) %}
+                    <li><a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"><span class="glyphicon glyphicon-new-window"></span> {{ link.label }}</a></li>
+                    {% endfor %}
                     {% if g.allow_registration and not current_user.is_authenticated %}
                     <li><a id="login" href="{{url_for('web.login')}}"><span class="glyphicon glyphicon-log-in"></span> {{_('Login')}}</a></li>
                     <li><a id="register" href="{{url_for('web.register')}}"><span class="glyphicon glyphicon-user"></span> {{_('Register')}}</a></li>
