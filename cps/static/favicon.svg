@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Calibre-Web Automated">
+  <rect width="64" height="64" rx="14" fill="#141e25"/>
+  <path d="M10 19c8-3 15-2 22 3v26c-7-4-14-5-22-2V19Z" fill="#3CB39D"/>
+  <path d="M54 19c-8-3-15-2-22 3v26c7-4 14-5 22-2V19Z" fill="#57C9B4"/>
+  <circle cx="47" cy="46" r="10" fill="#DF9F55"/>
+  <path d="M44 40.5v11l9-5.5-9-5.5Z" fill="#141e25"/>
+</svg>
