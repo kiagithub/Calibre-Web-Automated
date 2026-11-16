@@ -575,11 +575,14 @@ def test_movie_templates_use_shared_cards_permissions_and_accessible_results():
 
 @pytest.mark.unit
 def test_movie_metadata_js_preserves_focus_and_safe_dom_construction():
-    script = (Path(routes.__file__).resolve().parents[1] / "static" / "js" / "movies.js").read_text(encoding="utf-8")
+    js_root = Path(routes.__file__).resolve().parents[1] / "static" / "js"
+    script = (js_root / "movies.js").read_text(encoding="utf-8")
+    shared = (js_root / "metadata_search.js").read_text(encoding="utf-8")
 
     assert ".innerHTML" not in script
     assert "results.replaceChildren" not in script
-    assert script.count("resultsHeading.focus();") == 2
-    assert 'results.setAttribute("aria-busy", "true")' in script
-    assert 'results.setAttribute("aria-busy", "false")' in script
+    assert "metadataSearch.init({" in script
+    assert shared.count("resultsHeading.focus();") == 2
+    assert 'results.setAttribute("aria-busy", "true")' in shared
+    assert 'results.setAttribute("aria-busy", "false")' in shared
     assert '"X-CSRFToken"' in script

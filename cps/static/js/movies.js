@@ -1,11 +1,10 @@
 (function () {
   "use strict";
 
+  var metadataSearch = window.CWA && window.CWA.metadataSearch;
+
   function element(tag, className, text) {
-    var node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined && text !== null) node.textContent = String(text);
-    return node;
+    return metadataSearch.element(tag, className, text);
   }
 
   function hiddenInput(name, value) {
@@ -16,87 +15,80 @@
     return input;
   }
 
+  function renderResult(movie, context) {
+    var card = element("article", "movie-metadata-result");
+    var copy = element("div", "movie-metadata-result-copy");
+    copy.appendChild(element(
+      "h4",
+      "movie-metadata-result-title",
+      movie.title + (movie.year ? " (" + movie.year + ")" : "")
+    ));
+
+    var facts = [];
+    if (movie.tmdb_rating !== null) facts.push("TMDB " + movie.tmdb_rating + "/10");
+    if (movie.original_title && movie.original_title !== movie.title) facts.push(movie.original_title);
+    if (facts.length) copy.appendChild(element("p", "movie-result-facts", facts.join(" · ")));
+    if (movie.overview) copy.appendChild(element("p", "movie-result-overview", movie.overview));
+    card.appendChild(copy);
+
+    var applyForm = element("form", "movie-metadata-apply");
+    applyForm.method = "post";
+    applyForm.action = context.panel.dataset.applyUrl;
+    applyForm.appendChild(hiddenInput("csrf_token", context.csrf ? context.csrf.value : ""));
+    applyForm.appendChild(hiddenInput("tmdb_id", movie.tmdb_id));
+    if (context.panel.dataset.import === "true") {
+      applyForm.appendChild(hiddenInput("media_format", document.getElementById("import-format").value));
+      applyForm.appendChild(hiddenInput("location", document.getElementById("import-location").value));
+    }
+    var apply = element(
+      "button",
+      "btn btn-primary",
+      context.panel.dataset.import === "true" ? "Add to library" : "Use this metadata"
+    );
+    apply.type = "submit";
+    applyForm.appendChild(apply);
+    card.appendChild(applyForm);
+    return card;
+  }
+
   function initMetadataSearch() {
-    var panel = document.getElementById("metadata-search");
-    if (!panel) return;
-    var form = panel.querySelector(".movie-metadata-search-form");
-    if (!form) return;
-    var results = panel.querySelector(".movie-metadata-results");
-    var resultList = panel.querySelector(".movie-metadata-result-list");
-    var resultsHeading = panel.querySelector(".movie-metadata-results-heading");
-    var status = panel.querySelector(".movie-metadata-status");
-    var csrf = document.querySelector("input[name='csrf_token']");
-    if (!results || !resultList || !resultsHeading || !status) return;
-
-    form.addEventListener("submit", function (event) {
-      event.preventDefault();
-      var button = form.querySelector("button[type='submit']");
-      var query = form.elements.query.value.trim();
-      if (!query) {
-        status.textContent = "Enter a movie title to search.";
-        form.elements.query.focus();
-        return;
-      }
-      button.disabled = true;
-      results.setAttribute("aria-busy", "true");
-      status.classList.remove("movie-search-error");
-      status.textContent = "Searching TMDB…";
-      resultList.replaceChildren();
-      fetch(panel.dataset.searchUrl, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": csrf ? csrf.value : ""
-        },
-        body: JSON.stringify({query: query, year: form.elements.year.value})
-      }).then(function (response) {
-        return response.json().then(function (data) {
-          if (!response.ok) throw new Error(data.error || "Metadata search failed.");
-          return data.results || [];
-        });
-      }).then(function (movies) {
-        if (!movies.length) {
-          status.textContent = "No matches found. Try another title or add the release year.";
-        } else {
-          movies.forEach(function (movie) {
-            var card = element("article", "movie-metadata-result");
-            var copy = element("div", "movie-metadata-result-copy");
-            copy.appendChild(element("h4", "movie-metadata-result-title", movie.title + (movie.year ? " (" + movie.year + ")" : "")));
-            var facts = [];
-            if (movie.tmdb_rating !== null) facts.push("TMDB " + movie.tmdb_rating + "/10");
-            if (movie.original_title && movie.original_title !== movie.title) facts.push(movie.original_title);
-            if (facts.length) copy.appendChild(element("p", "movie-result-facts", facts.join(" · ")));
-            if (movie.overview) copy.appendChild(element("p", "movie-result-overview", movie.overview));
-            card.appendChild(copy);
-
-            var applyForm = element("form", "movie-metadata-apply");
-            applyForm.method = "post";
-            applyForm.action = panel.dataset.applyUrl;
-            applyForm.appendChild(hiddenInput("csrf_token", csrf ? csrf.value : ""));
-            applyForm.appendChild(hiddenInput("tmdb_id", movie.tmdb_id));
-            if (panel.dataset.import === "true") {
-              applyForm.appendChild(hiddenInput("media_format", document.getElementById("import-format").value));
-              applyForm.appendChild(hiddenInput("location", document.getElementById("import-location").value));
-            }
-            var apply = element("button", "btn btn-primary", panel.dataset.import === "true" ? "Add to library" : "Use this metadata");
-            apply.type = "submit";
-            applyForm.appendChild(apply);
-            card.appendChild(applyForm);
-            resultList.appendChild(card);
-          });
-          status.textContent = movies.length === 1 ? "1 metadata result found." : movies.length + " metadata results found.";
-        }
-        resultsHeading.focus();
-      }).catch(function (error) {
-        resultList.replaceChildren();
+    if (!metadataSearch) return;
+    metadataSearch.init({
+      formSelector: ".movie-metadata-search-form",
+      resultsSelector: ".movie-metadata-results",
+      resultListSelector: ".movie-metadata-result-list",
+      headingSelector: ".movie-metadata-results-heading",
+      statusSelector: ".movie-metadata-status",
+      messages: {
+        emptyQuery: "Enter a movie title to search.",
+        searching: "Searching TMDB…",
+        empty: "No matches found. Try another title or add the release year.",
+        one: "1 metadata result found.",
+        many: "%d metadata results found.",
+        failed: "Metadata search failed."
+      },
+      buildRequest: function (query, form, csrf) {
+        return {
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrf ? csrf.value : ""
+          },
+          body: JSON.stringify({query: query, year: form.elements.year.value})
+        };
+      },
+      parseResponse: function (data) {
+        return data.results || [];
+      },
+      errorMessage: function (data) {
+        return data.error || "Metadata search failed.";
+      },
+      onStart: function (status) {
+        status.classList.remove("movie-search-error");
+      },
+      onError: function (status) {
         status.classList.add("movie-search-error");
-        status.textContent = error && error.message ? error.message : "Metadata search failed.";
-        resultsHeading.focus();
-      }).finally(function () {
-        button.disabled = false;
-        results.setAttribute("aria-busy", "false");
-      });
+      },
+      renderResult: renderResult
     });
   }
 

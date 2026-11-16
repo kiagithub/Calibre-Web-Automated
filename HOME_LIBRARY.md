@@ -39,6 +39,8 @@ Enabled providers run side by side. The search responds shortly after the first 
 
 Every result shows a small cover thumbnail beside its details. Thumbnails load lazily through a bounded server-side route, use the same Advocate/local-address policy and image checks as saved covers, are downscaled to thumbnail size, and are cached in memory. Applying metadata still records the provider's full cover URL; the thumbnail is only a preview.
 
+Movie and personal-book metadata search share the fetch, status, error, and focus lifecycle in `cps/static/js/metadata_search.js`; each keeps its own request format and result rendering.
+
 Metadata updates preserve the owned-copy fields, media type, personal tags, location, condition, acquisition details, rating, and notes. Provider tags are suggestions rather than silent replacements.
 
 Records and ratings are shared across library users, matching the movie collection. Viewing follows the normal login/anonymous policy; add/edit and metadata changes require edit permission, deletion requires delete permission, and writes use CSRF protection. Upload permission is not required for a metadata-only record.
@@ -278,7 +280,6 @@ These are documented rather than started during the current stabilization pass:
 
 - Replace numbered mixed-source pagination with keyset pagination only if a future UI can drop arbitrary page-number jumps. The current recent-first merge preserves numbered pages and exact totals, but later pages read a larger bounded prefix from each source.
 - Consolidate remaining legacy/movie/external CSS aliases and duplicate selectors after the shared component behavior is stable.
-- Extract more shared form parsers and parameterize the two metadata-search DOM lifecycles only when that can be done without obscuring their different provider workflows.
 - Isolate legacy tests that replace global `cps` modules in `sys.modules`; a single-process full-unit run is order-dependent, while the CI-style xdist run avoids the contamination.
 - Consider a shared artwork-replacement transaction object only if another media collection needs it; routes currently own database commits and use the tested shared artwork primitives.
 - Per-user watched/read state, private collections, loans, barcode scanning, import/export, additional movie providers, and unified global search remain separate features.

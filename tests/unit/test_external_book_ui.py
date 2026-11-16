@@ -80,16 +80,15 @@ def test_external_book_form_contains_all_fields_and_separate_forms():
     assert 'data-generic-cover=' in template
 
 
-def test_external_book_metadata_js_uses_safe_dom_and_accessible_focus():
+def test_external_book_metadata_js_uses_safe_dom_and_shared_skeleton():
     script = (REPO_ROOT / "cps" / "static" / "js" / "external_books.js").read_text(encoding="utf-8")
 
     assert "new URLSearchParams({query: query})" in script
-    assert 'credentials: "same-origin"' in script
     assert '"X-CSRFToken"' in script
     assert "new DOMParser().parseFromString" in script
     assert 'querySelectorAll("script, style")' in script
     assert ".innerHTML" not in script
-    assert script.count("resultsHeading.focus();") == 2
+    assert "metadataSearch.init({" in script
     assert 'setField("tags"' not in script
     assert 'setField("media_type"' not in script
     assert 'setField("cover",' not in script
@@ -99,6 +98,37 @@ def test_external_book_metadata_js_uses_safe_dom_and_accessible_focus():
     assert script.startswith("(function ()")
 
 
+def test_shared_metadata_search_skeleton_owns_fetch_status_and_focus():
+    script = (REPO_ROOT / "cps" / "static" / "js" / "metadata_search.js").read_text(encoding="utf-8")
+
+    assert 'credentials: "same-origin"' in script
+    assert 'response.headers.get("X-Metadata-Partial") === "true"' in script
+    assert script.count("resultsHeading.focus();") == 2
+    assert ".innerHTML" not in script
+    assert "global.CWA.metadataSearch = {element: element, init: init}" in script
+
+
+def test_both_metadata_search_pages_use_the_shared_skeleton():
+    movies = (REPO_ROOT / "cps" / "static" / "js" / "movies.js").read_text(encoding="utf-8")
+    books = (REPO_ROOT / "cps" / "static" / "js" / "external_books.js").read_text(encoding="utf-8")
+
+    assert "metadataSearch.init({" in movies
+    assert "metadataSearch.init({" in books
+    assert "function initMetadataSearch()" in movies
+    assert "function initMetadataSearch()" in books
+
+
+def test_metadata_search_templates_load_shared_skeleton_first():
+    pages = [
+        (TEMPLATE_ROOT / "movies" / "form.html", "movies.js"),
+        (EXTERNAL_TEMPLATES / "form.html", "external_books.js"),
+        (EXTERNAL_TEMPLATES / "detail.html", "external_books.js"),
+    ]
+    for path, page_script in pages:
+        template = path.read_text(encoding="utf-8")
+        assert template.index("js/metadata_search.js") < template.index(f"js/{page_script}")
+
+
 def test_external_book_metadata_results_show_lazy_cover_thumbnails():
     script = (REPO_ROOT / "cps" / "static" / "js" / "external_books.js").read_text(encoding="utf-8")
 
@@ -106,5 +136,4 @@ def test_external_book_metadata_results_show_lazy_cover_thumbnails():
     assert 'element("img", "external-books-metadata-result-cover")' in script
     assert 'cover.loading = "lazy"' in script
     assert 'cover.decoding = "async"' in script
-    assert 'response.headers.get("X-Metadata-Partial") === "true"' in script
     assert ".innerHTML" not in script
