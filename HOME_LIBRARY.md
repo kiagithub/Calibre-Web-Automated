@@ -297,6 +297,7 @@ A full browser check should exercise Home, Books, Movies, add/edit/delete, metad
 - Run the full browser check described under Development checks against an isolated Docker config/library.
 - Exercise keyset Previous/Next against a test library with more than 24 books; cursor behavior and link generation are covered by unit tests, but a multi-page live check remains.
 - Repair the pre-existing OAuth and ingest-shell test failures listed under Development checks.
+- See `SHELFMARK_PLAN.md` for the proposed Shelfmark-inspired ownership badges, Open Library provider, audiobook catalog support, wishlist/requests, stats, and API work.
 
 ## Deliberately deferred clean-cut improvements
 
