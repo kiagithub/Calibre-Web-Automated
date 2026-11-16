@@ -254,7 +254,7 @@ Use CWA's existing upload control or move completed files into `/cwa-book-ingest
 
 ## Development checks
 
-The project requires Python 3.10 or newer; the current focused suite uses Python 3.13. Provider responses are mocked in unit tests and do not require credentials or live network access.
+The project requires Python 3.10 or newer; the current focused suite uses Python 3.13. Provider responses are mocked in unit tests and do not require credentials or live network access. Legacy tests that load stubbed `cps` modules restore `sys.modules` after each module, so `pytest tests/unit` is no longer order-dependent.
 
 ```bash
 python3.13 -m venv .venv
@@ -280,6 +280,5 @@ These are documented rather than started during the current stabilization pass:
 
 - Replace numbered mixed-source pagination with keyset pagination only if a future UI can drop arbitrary page-number jumps. The current recent-first merge preserves numbered pages and exact totals, but later pages read a larger bounded prefix from each source.
 - Consolidate remaining legacy/movie/external CSS aliases and duplicate selectors after the shared component behavior is stable.
-- Isolate legacy tests that replace global `cps` modules in `sys.modules`; a single-process full-unit run is order-dependent, while the CI-style xdist run avoids the contamination.
 - Consider a shared artwork-replacement transaction object only if another media collection needs it; routes currently own database commits and use the tested shared artwork primitives.
 - Per-user watched/read state, private collections, loans, barcode scanning, import/export, additional movie providers, and unified global search remain separate features.

@@ -271,6 +271,7 @@ def _load_duplicates_module(delete_key_calls):
     _install_stub("cps.admin", {"admin_required": _decorator})
     _install_stub("cps.usermanagement", {"login_required_if_no_ano": _decorator})
     _install_stub("cps.render_template", {"render_title_template": lambda *args, **kwargs: ""})
+    _install_stub("cps.internal_api", {"internal_only": lambda fn: fn})
     _install_stub("cps.cw_login", {"current_user": current_user})
     _install_stub(
         "cps.services.worker",

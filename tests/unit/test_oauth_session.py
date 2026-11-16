@@ -176,6 +176,10 @@ module_patches = {
     'cps.db': create_mock_module('cps.db'),
 }
 
+# Load against the mocks even if another test already imported the real module,
+# then restore the previous module so this file does not leak mock state.
+previous_oauth_bb = sys.modules.pop("cps.oauth_bb", None)
+
 # We use patch.dict to temporarily replace modules during import
 with patch.dict(sys.modules, module_patches):
     # Ensure project root is in sys.path
@@ -184,9 +188,8 @@ with patch.dict(sys.modules, module_patches):
 
     import cps.oauth_bb as oauth_bb
 
-# Keep oauth_bb in sys.modules so patch() can find it later
-# even after the patch.dict context manager exits
-sys.modules['cps.oauth_bb'] = oauth_bb
+if previous_oauth_bb is not None:
+    sys.modules["cps.oauth_bb"] = previous_oauth_bb
 
 
 class TestGenericOIDCSession:
@@ -289,7 +292,7 @@ class TestOAuthLogic:
         token = {'access_token': 'test_token'}
         
         # Spy on GenericOIDCSession
-        with patch('cps.oauth_bb.GenericOIDCSession', side_effect=oauth_bb.GenericOIDCSession) as MockSession:
+        with patch.object(oauth_bb, 'GenericOIDCSession', side_effect=oauth_bb.GenericOIDCSession) as MockSession:
             oauth_bb.register_user_from_generic_oauth(token=token)
             
             # Verify it was called with the token
