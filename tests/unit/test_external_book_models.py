@@ -71,6 +71,24 @@ class TestExternalBookModels:
             db_session.commit()
         db_session.rollback()
 
+    def test_external_book_migration_adds_audiobook_columns(self, tmp_path):
+        engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'app.db'}")
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "CREATE TABLE external_book (id INTEGER PRIMARY KEY, title VARCHAR(300), "
+                "media_type VARCHAR(20))"
+            )
+
+        ub.migrate_external_book_table(engine, None)
+        ub.migrate_external_book_table(engine, None)
+
+        with engine.connect() as connection:
+            columns = {
+                row[1] for row in connection.exec_driver_sql("PRAGMA table_info(external_book)")
+            }
+        assert {"narrator", "duration_minutes", "abridged", "audio_format"} <= columns
+        engine.dispose()
+
     def test_create_all_adds_tables_to_existing_app_database(self):
         engine = create_engine("sqlite+pysqlite:///:memory:")
         Movie.__table__.create(engine)

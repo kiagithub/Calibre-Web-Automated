@@ -15,11 +15,14 @@ from cps.external_books.models import ExternalBook
 from cps.jinjia import jinjia
 from cps.media import ImageDownloadError
 from cps.search_metadata import meta
+from cps.wishlist import notifications as wishlist_notifications
+from cps.wishlist.models import MediaRequest
 
 JPEG = b"\xff\xd8\xff" + b"test-image"
 
 
 class FakeUser:
+    id = 1
     is_authenticated = True
     is_anonymous = False
     locale = "en"
@@ -139,7 +142,7 @@ class TestExternalBookRoutes:
 
     def test_invalid_type_does_not_create_book(self, external_app):
         app, session, _calibre, _user, _tmp_path = external_app
-        response = app.test_client().post("/books/personal/new", data=form_data(media_type="audiobook"))
+        response = app.test_client().post("/books/personal/new", data=form_data(media_type="ebook"))
         assert response.status_code == 400
         assert session.query(ExternalBook).count() == 0
 
@@ -244,6 +247,24 @@ class TestExternalBookRoutes:
         assert response.status_code == 200
         assert b"<svg" in response.data
         thumbnails.clear_thumbnail_cache()
+
+    def test_fulfilling_wishlist_request_links_new_book(self, external_app, monkeypatch):
+        app, session, _calibre, _user, _tmp_path = external_app
+        monkeypatch.setattr(wishlist_notifications, "notify_request", lambda *args, **kwargs: None)
+        entry = MediaRequest(user_id=1, content_type="book", status="pending", title="Dune")
+        entry.authors = ["Frank Herbert"]
+        entry.identifiers = {"isbn_13": "9780441172719"}
+        session.add(entry)
+        session.commit()
+
+        response = app.test_client().post(
+            "/books/personal/new", data=form_data(title="Dune", request_id=str(entry.id))
+        )
+
+        assert response.status_code == 302
+        book = session.query(ExternalBook).one()
+        assert entry.status == "fulfilled"
+        assert entry.fulfilled_external_book_id == book.id
 
     def test_edit_and_delete_permissions_are_enforced(self, external_app):
         app, session, _calibre, user, _tmp_path = external_app

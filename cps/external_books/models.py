@@ -5,12 +5,13 @@ import json
 import unicodedata
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship, validates
 
 from ..ub import Base
 
-MEDIA_TYPES = ("physical", "kindle", "other_digital")
+MEDIA_TYPES = ("physical", "kindle", "other_digital", "audiobook")
+AUDIO_FORMATS = ("M4B", "MP3", "Other")
 CONDITIONS = ("New", "Like new", "Good", "Fair", "Poor")
 
 
@@ -50,6 +51,10 @@ class ExternalBook(Base):
     page_count = Column(Integer)
 
     media_type = Column(String(20), nullable=False, default="physical", index=True)
+    narrator = Column(String(300), nullable=False, default="")
+    duration_minutes = Column(Integer)
+    abridged = Column(Boolean, nullable=False, default=False)
+    audio_format = Column(String(20), nullable=False, default="")
     binding = Column(String(40), nullable=False, default="")
     edition = Column(String(200), nullable=False, default="")
     location = Column(String(200), nullable=False, default="", index=True)
@@ -103,6 +108,10 @@ class ExternalBook(Base):
     @property
     def tag_names(self):
         return [tag.name for tag in self.tags]
+
+    @property
+    def content_type(self):
+        return "audiobook" if self.media_type == "audiobook" else "book"
 
     def __repr__(self):
         return f"<ExternalBook {self.id}: {self.title!r} ({self.media_type})>"

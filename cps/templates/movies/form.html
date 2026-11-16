@@ -10,7 +10,7 @@
 
   {% if errors %}<div class="alert alert-danger" role="alert"><strong>Please check the following:</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
 
-  <section id="metadata-search" class="media-panel media-metadata-panel movie-metadata-panel" data-search-url="{{ url_for('movies.metadata_search') }}" {% if movie %}data-apply-url="{{ url_for('movies.metadata_apply', movie_id=movie.id) }}"{% else %}data-apply-url="{{ url_for('movies.import_movie') }}" data-import="true"{% endif %}>
+  <section id="metadata-search" class="media-panel media-metadata-panel movie-metadata-panel" data-search-url="{{ url_for('movies.metadata_search') }}" data-request-url="{{ url_for('wishlist.request_item') }}" {% if movie %}data-apply-url="{{ url_for('movies.metadata_apply', movie_id=movie.id) }}"{% else %}data-apply-url="{{ url_for('movies.import_movie') }}" data-import="true"{% endif %}>
     <div class="media-section-heading movie-section-heading">
       <div><span class="media-step movie-step">Online metadata</span><h2>Find it on TMDB</h2></div>
       <span class="media-provider-label movie-provider-label">Posters · cast · synopsis</span>
@@ -38,6 +38,7 @@
 
   <form method="post" enctype="multipart/form-data" class="movie-edit-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="request_id" value="{{ request_id or '' }}">
     <input type="hidden" name="tmdb_id" value="{{ form.get('tmdb_id', movie.tmdb_id if movie and movie.tmdb_id else '') }}">
     <section class="media-panel media-form-section movie-form-section">
       <div class="media-section-heading movie-section-heading"><div><span class="media-step movie-step">Movie details</span><h2>The film</h2></div></div>

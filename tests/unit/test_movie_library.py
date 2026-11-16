@@ -11,6 +11,8 @@ from cps.jinjia import jinjia
 from cps.movie_library import metadata, routes
 from cps.movie_library.metadata import MovieMetadataError, TMDBClient, image_type
 from cps.movie_library.models import MOVIE_CREATED_AT_INDEX, Movie, ensure_movie_indexes
+from cps.wishlist import notifications as wishlist_notifications
+from cps.wishlist.models import MediaRequest
 from flask import Flask, g, jsonify, render_template
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
@@ -186,6 +188,7 @@ class TestTMDBMetadata:
 
 
 class FakeUser:
+    id = 1
     is_authenticated = True
     is_anonymous = False
     locale = "en"
@@ -313,6 +316,25 @@ class TestMovieRoutes:
         assert annotated.status_code == 200
         assert annotated.get_json()["results"][0]["owned"] is True
         assert "owned" not in plain.get_json()["results"][0]
+
+    def test_fulfilling_wishlist_request_links_new_movie(self, movie_app, monkeypatch):
+        app, session, _user = movie_app
+        monkeypatch.setattr(wishlist_notifications, "notify_request", lambda *args, **kwargs: None)
+        entry = MediaRequest(user_id=1, content_type="movie", status="pending", title="Arrival")
+        entry.identifiers = {"tmdb_id": "329865", "release_date": "2016-11-11"}
+        session.add(entry)
+        session.commit()
+
+        response = app.test_client().post("/movies/new", data={
+            "title": "Arrival",
+            "media_format": "Blu-ray",
+            "request_id": str(entry.id),
+        })
+
+        assert response.status_code == 302
+        movie = session.query(Movie).one()
+        assert entry.status == "fulfilled"
+        assert entry.fulfilled_movie_id == movie.id
 
     def test_invalid_form_does_not_create_movie(self, movie_app):
         app, db_session, _ = movie_app
@@ -546,6 +568,8 @@ class TestMovieRoutes:
             "search.advanced_search", "shelf.create_shelf", "shelf.show_shelf",
             "duplicates.show_duplicates", "duplicates.dismiss_duplicate_scan_setup_notice",
             "about.package_versions", "admin.admin", "edit-book.upload", "tasks.get_tasks_status",
+            "wishlist.index", "wishlist.new", "wishlist.request_item",
+            "media_api.stats_page", "media_api.api_keys",
         ):
             app.add_url_rule(f"/stub/{endpoint}", endpoint=endpoint, view_func=lambda: "")
 

@@ -43,7 +43,9 @@ class TestExternalBookForms:
 
     @pytest.mark.parametrize("overrides,message", [
         ({"title": ""}, "Title is required"),
-        ({"media_type": "audiobook"}, "Select Physical"),
+        ({"media_type": "ebook"}, "Select Physical"),
+        ({"duration_minutes": "0"}, "between 1"),
+        ({"audio_format": "Vinyl"}, "valid audiobook format"),
         ({"condition": "Broken"}, "valid condition"),
         ({"published_date": "2026-02-31"}, "valid date"),
         ({"published_date": "11/11/2016"}, "YYYY"),
@@ -59,6 +61,30 @@ class TestExternalBookForms:
     def test_invalid_fields_are_rejected(self, overrides, message):
         _values, errors = validate_form(valid_form(**overrides))
         assert any(message in error for error in errors), errors
+
+    def test_audiobook_fields_are_validated_and_applied(self):
+        values, errors = validate_form(valid_form(
+            media_type="audiobook",
+            narrator="Reader Name",
+            duration_minutes="720",
+            audio_format="M4B",
+            abridged="on",
+        ))
+        assert errors == []
+        assert values["media_type"] == "audiobook"
+        assert values["narrator"] == "Reader Name"
+        assert values["duration_minutes"] == 720
+        assert values["audio_format"] == "M4B"
+        assert values["abridged"] is True
+
+        book = ExternalBook(title="Old", media_type="physical")
+        apply_values(book, values)
+        assert book.media_type == "audiobook"
+        assert book.narrator == "Reader Name"
+        assert book.duration_minutes == 720
+        assert book.audio_format == "M4B"
+        assert book.abridged is True
+        assert book.content_type == "audiobook"
 
     def test_tags_are_unicode_normalized_trimmed_and_deduplicated(self):
         errors = []

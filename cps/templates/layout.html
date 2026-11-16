@@ -137,6 +137,10 @@
               <li class="dropdown"><a href="#" class="dropdown-toggle profileDrop" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><span class="glyphicon glyphicon-user"></span></a>
                 <ul class="dropdown-menu profileDropli">
                     <li><a id="top_user" data-text="{{_('Account')}}" href="{{url_for('web.profile')}}"><span class="glyphicon glyphicon-user"></span> <span class="hidden-sm">{{current_user.name}}</span></a></li>
+                    {% if not current_user.is_anonymous %}
+                    <li><a href="{{ url_for('media_api.stats_page') }}"><span class="glyphicon glyphicon-stats"></span> {{ _('Collection stats') }}</a></li>
+                    <li><a href="{{ url_for('media_api.api_keys') }}"><span class="glyphicon glyphicon-lock"></span> {{ _('API keys') }}</a></li>
+                    {% endif %}
                     {% if g.allow_registration and not current_user.is_authenticated %}
                     <li><a id="login" href="{{url_for('web.login')}}"><span class="glyphicon glyphicon-log-in"></span> {{_('Login')}}</a></li>
                     <li><a id="register" href="{{url_for('web.register')}}"><span class="glyphicon glyphicon-user"></span> {{_('Register')}}</a></li>
@@ -310,6 +314,11 @@
               <li id="nav_movies" {% if page == 'movies' %}class="active"{% endif %}>
                 <a href="{{ url_for('movies.index') }}"{% if page == 'movies' %} aria-current="page"{% endif %}><span class="glyphicon glyphicon-film"></span> {{_('Movies')}}</a>
               </li>
+              {% if current_user.is_authenticated %}
+              <li id="nav_wishlist" {% if page == 'wishlist' %}class="active"{% endif %}>
+                <a href="{{ url_for('wishlist.index') }}"{% if page == 'wishlist' %} aria-current="page"{% endif %}><span class="glyphicon glyphicon-star-empty"></span> {{_('Wishlist')}}</a>
+              </li>
+              {% endif %}
               {% set secondary_items = sidebar|rejectattr('group', 'equalto', 'primary')|list %}
               {% set secondary_pages = secondary_items|map(attribute='page')|list %}
               <li class="nav-group">

@@ -15,7 +15,7 @@
   </div>
   {% endif %}
 
-  <section id="metadata-search" class="external-books-metadata-panel" data-search-url="{{ metadata_search_url }}" data-cover-url="{{ url_for('external_books.metadata_cover') }}" data-generic-cover="{{ url_for('static', filename='generic_cover.svg') }}" data-partial-message="{{ _('Some sources are still responding; results may be incomplete.') }}">
+  <section id="metadata-search" class="external-books-metadata-panel" data-search-url="{{ metadata_search_url }}" data-cover-url="{{ url_for('external_books.metadata_cover') }}" data-generic-cover="{{ url_for('static', filename='generic_cover.svg') }}" data-request-url="{{ url_for('wishlist.request_item') }}" data-partial-message="{{ _('Some sources are still responding; results may be incomplete.') }}">
     <div class="external-books-section-heading">
       <div><span class="external-books-step">{{ _('Online metadata') }}</span><h2>{{ _('Find book metadata') }}</h2></div>
       <span class="external-books-provider-label">{{ _('Details · identifiers · covers') }}</span>
@@ -39,6 +39,7 @@
 
   <form method="post" enctype="multipart/form-data" class="external-books-edit-form" action="{{ url_for('external_books.edit', book_id=book.id) if book else url_for('external_books.new') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="request_id" value="{{ request_id or '' }}">
     <input type="hidden" id="metadata_provider" name="metadata_provider" value="{{ form.get('metadata_provider', book.metadata_provider if book else '') }}">
     <input type="hidden" id="metadata_id" name="metadata_id" value="{{ form.get('metadata_id', book.metadata_id if book else '') }}">
     <input type="hidden" id="metadata_url" name="metadata_url" value="{{ form.get('metadata_url', book.metadata_url if book else '') }}">
@@ -84,6 +85,23 @@
           <label for="page_count">{{ _('Page count') }}</label>
           <input class="form-control" id="page_count" name="page_count" type="number" min="1" max="50000" value="{{ form.get('page_count', book.page_count if book and book.page_count is not none else '') }}">
         </div>
+        <div class="form-group">
+          <label for="narrator">{{ _('Narrator') }}</label>
+          <input class="form-control" id="narrator" name="narrator" maxlength="300" value="{{ form.get('narrator', book.narrator if book else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="duration_minutes">{{ _('Audiobook duration (minutes)') }}</label>
+          <input class="form-control" id="duration_minutes" name="duration_minutes" type="number" min="1" max="100000" value="{{ form.get('duration_minutes', book.duration_minutes if book and book.duration_minutes is not none else '') }}">
+        </div>
+        <div class="form-group">
+          <label for="audio_format">{{ _('Audiobook format') }}</label>
+          {% set selected_audio_format = form.get('audio_format', book.audio_format if book else '') %}
+          <select class="form-control" id="audio_format" name="audio_format">
+            <option value="">{{ _('Not specified') }}</option>
+            {% for audio_format in audio_formats %}<option value="{{ audio_format }}"{% if selected_audio_format == audio_format %} selected{% endif %}>{{ audio_format }}</option>{% endfor %}
+          </select>
+        </div>
+        <label class="external-books-checkbox"><input type="checkbox" id="abridged" name="abridged"{% if (form and form.get('abridged') == 'on') or (not form and book and book.abridged) %} checked{% endif %}> {{ _('Abridged audiobook') }}</label>
         <div class="form-group external-books-field-full">
           <label for="tags">{{ _('Tags') }} <small>{{ _('Comma separated') }}</small></label>
           <input class="form-control" id="tags" name="tags" maxlength="5000" placeholder="{{ _('Favorites, Book club') }}" value="{{ form.get('tags', book.tag_names|join(', ') if book else '') }}">

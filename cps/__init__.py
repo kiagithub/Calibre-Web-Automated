@@ -29,6 +29,8 @@ from . import ub, db, magic_shelf
 # Register media models before app.db tables are created in create_app().
 from .movie_library import models as movie_models
 from .external_books import models as external_book_models
+from .wishlist import models as wishlist_models
+from .media_api import models as media_api_models
 
 try:
     from flask_limiter import Limiter

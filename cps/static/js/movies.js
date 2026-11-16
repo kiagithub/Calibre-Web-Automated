@@ -15,6 +15,41 @@
     return input;
   }
 
+  function requestMovie(context, movie, button) {
+    var url = context.panel.dataset.requestUrl;
+    if (!url) return;
+    button.disabled = true;
+    fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": context.csrf ? context.csrf.value : ""
+      },
+      body: JSON.stringify({
+        content_type: "movie",
+        title: movie.title,
+        metadata_provider: "tmdb",
+        metadata_id: movie.tmdb_id ? String(movie.tmdb_id) : "",
+        metadata_url: movie.tmdb_id ? "https://www.themoviedb.org/movie/" + movie.tmdb_id : "",
+        cover_url: movie.poster_url || "",
+        tmdb_id: movie.tmdb_id || "",
+        release_date: movie.release_date || ""
+      })
+    }).then(function (response) {
+      return response.json().then(function (data) {
+        if (!response.ok) throw new Error(data && data.error ? data.error : "Could not add the request.");
+        return data;
+      });
+    }).then(function (data) {
+      context.status.textContent = data.created ? "Added to wishlist." : "That request is already on the wishlist.";
+    }).catch(function (error) {
+      context.status.textContent = error && error.message ? error.message : "Could not add the request.";
+    }).finally(function () {
+      button.disabled = false;
+    });
+  }
+
   function renderResult(movie, context) {
     var card = element("article", "movie-metadata-result");
     card.dataset.owned = movie.owned ? "true" : "false";
@@ -57,7 +92,15 @@
     );
     apply.type = "submit";
     applyForm.appendChild(apply);
-    card.appendChild(applyForm);
+    var actions = element("div", "movie-metadata-result-actions");
+    actions.appendChild(applyForm);
+    var request = element("button", "btn btn-default", "Request");
+    request.type = "button";
+    request.addEventListener("click", function () {
+      requestMovie(context, movie, request);
+    });
+    actions.appendChild(request);
+    card.appendChild(actions);
     return card;
   }
 

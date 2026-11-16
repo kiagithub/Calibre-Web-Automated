@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% block body %}
-{% set media_type_label = {'physical': _('Physical'), 'kindle': _('Kindle'), 'other_digital': _('Other digital')}.get(book.media_type, book.media_type) %}
+{% set media_type_label = {'physical': _('Physical'), 'kindle': _('Kindle'), 'other_digital': _('Other digital'), 'audiobook': _('Audiobook')}.get(book.media_type, book.media_type) %}
 <main class="external-books-page external-books-detail-page" aria-labelledby="external-book-title">
   <a class="external-books-back-link" href="{{ url_for('external_books.index') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> {{ _('Back to external books') }}</a>
   <article class="external-books-detail-card">
@@ -37,6 +37,10 @@
         {% if book.published_date %}<div><dt>{{ _('Publication date') }}</dt><dd>{{ book.published_date }}</dd></div>{% endif %}
         {% if book.series %}<div><dt>{{ _('Series') }}</dt><dd>{{ book.series }}{% if book.series_index %} #{{ book.series_index }}{% endif %}</dd></div>{% endif %}
         {% if book.page_count %}<div><dt>{{ _('Page count') }}</dt><dd>{{ book.page_count }}</dd></div>{% endif %}
+        {% if book.narrator %}<div><dt>{{ _('Narrator') }}</dt><dd>{{ book.narrator }}</dd></div>{% endif %}
+        {% if book.duration_minutes %}<div><dt>{{ _('Audiobook duration') }}</dt><dd>{{ book.duration_minutes }} {{ _('minutes') }}</dd></div>{% endif %}
+        {% if book.audio_format %}<div><dt>{{ _('Audiobook format') }}</dt><dd>{{ book.audio_format }}</dd></div>{% endif %}
+        {% if book.media_type == 'audiobook' %}<div><dt>{{ _('Abridged') }}</dt><dd>{{ _('Yes') if book.abridged else _('No') }}</dd></div>{% endif %}
         {% if book.binding %}<div><dt>{{ _('Binding') }}</dt><dd>{{ book.binding }}</dd></div>{% endif %}
         {% if book.edition %}<div><dt>{{ _('Edition') }}</dt><dd>{{ book.edition }}</dd></div>{% endif %}
         {% if book.isbn_10 %}<div><dt>{{ _('ISBN-10') }}</dt><dd>{{ book.isbn_10 }}</dd></div>{% endif %}

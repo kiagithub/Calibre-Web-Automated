@@ -28,9 +28,11 @@ Supported types:
 - **Physical**
 - **Kindle**
 - **Other digital**
+- **Audiobook**
 
 Records can contain:
 - title, authors, plain-text description, publisher, publication date, series/index, languages, and page count;
+- audiobook narrator, duration, audio format (M4B, MP3, Other), and abridged status;
 - free-form tags with Unicode/case-insensitive normalization and deduplication;
 - optional binding, edition, location, condition, acquisition date, collection-wide rating, and notes;
 - ISBN-10, ISBN-13, ASIN, metadata provider/ID/source URL, and a local cover.
@@ -48,6 +50,21 @@ Movie and personal-book metadata search share the fetch, status, error, and focu
 Metadata updates preserve the owned-copy fields, media type, personal tags, location, condition, acquisition details, rating, and notes. Provider tags are suggestions rather than silent replacements.
 
 Records and ratings are shared across library users, matching the movie collection. Viewing follows the normal login/anonymous policy; add/edit and metadata changes require edit permission, deletion requires delete permission, and writes use CSRF protection. Upload permission is not required for a metadata-only record.
+
+### Wishlist and requests
+
+- Signed-in users can request books, audiobooks, or movies from **Wishlist** (or the **Request** button on a metadata result).
+- Requests move through `pending`, `approved`, `rejected`, `fulfilled`, and `cancelled`; users can cancel their own open requests and admins/editors can approve, reject, reopen, or fulfil them.
+- **Fulfil** opens the existing Add Book or Add Movie form with the request metadata prefilled; saving the record marks the request fulfilled and links the new item.
+- Each user can have up to 20 open requests. Duplicate open requests for the same title are collapsed instead of creating a second row.
+- Email notifications are sent when mail is configured: new requests to admins, and approval/rejection/fulfilment decisions to the requester.
+
+### Collection stats and API
+
+- **Collection stats** in the profile menu shows book, audiobook, movie, and wishlist counts, including additions in the last 7 and 30 days.
+- **API keys** in the profile menu creates read-only keys. Send a key as `Authorization: Bearer <key>` or `X-Api-Key: <key>`.
+- Read-only endpoints: `/api/media/books`, `/api/media/books/<id>`, `/api/media/movies`, `/api/media/movies/<id>`, `/api/media/search`, and `/api/media/stats`.
+- Keys are stored hashed, can be revoked, and never expose passwords, file paths, or provider tokens.
 
 ### Movies and shared media safety
 
@@ -293,20 +310,22 @@ Feature-specific coverage lives in:
 - `tests/unit/test_favicon.py` covers the SVG brand mark, ICO sizes, PNG dimensions, and template fallback order
 - `tests/unit/test_library_check.py`, `test_library_check_providers.py`, and `test_metadata_merge.py` cover ownership matching, provider indexes, and deduplication
 - `tests/unit/test_openlibrary_provider.py` covers Open Library parsing and failure handling
+- `tests/unit/test_wishlist.py` covers request creation, moderation, limits, and fulfilment
+- `tests/unit/test_media_api.py` covers read-only API auth, serialization, filters, stats, and API-key management
 
 Known pre-existing failures in the current environment:
 
 - `tests/unit/test_oauth_session.py` has three stale tests that call removed `*_logged_in` functions.
 - `tests/unit/test_ingest_watchers.py::test_ingest_service_shell_script` is environment-specific.
 
-The suite is order-independent and currently reports 470 passed, 18 skipped, 4 failed (the failures above).
+The suite is order-independent and currently reports 491 passed, 18 skipped, 4 failed (the failures above).
 
 A full browser check should exercise Home, Books, Movies, add/edit/delete, metadata selection, filters, collapsed navigation, keyboard focus, and desktop/mobile overflow against an isolated Docker config/library.
 
 ## Current status
 
 - The Home Library features above are implemented on `feature/physical-movies` and pushed to `origin`.
-- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, and Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication.
+- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, and Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API.
 
 ## Optional follow-ups
 
@@ -314,6 +333,7 @@ A full browser check should exercise Home, Books, Movies, add/edit/delete, metad
 - Run the full browser check described under Development checks against an isolated Docker config/library.
 - Exercise keyset Previous/Next against a test library with more than 24 books; cursor behavior and link generation are covered by unit tests, but a multi-page live check remains.
 - Repair the pre-existing OAuth and ingest-shell test failures listed under Development checks.
+- Add the optional Audiobookshelf ownership provider and per-user request policies (planned for Phase 3).
 - See `SHELFMARK_PLAN.md` for the proposed Shelfmark-inspired ownership badges, Open Library provider, audiobook catalog support, wishlist/requests, stats, and API work.
 
 ## Deliberately deferred clean-cut improvements

@@ -9,13 +9,17 @@ from sqlalchemy.orm import noload
 
 from .. import logger, ub
 from ..catalog.read_models import MEDIA_TYPE_LABELS, external_book_card
+from ..cw_login import current_user
 from ..media import ImageDownloadError, media_delete_required, media_edit_required, media_permissions, serve_artwork
 from ..pagination import Pagination
 from ..render_template import render_title_template
 from ..usermanagement import login_required_if_no_ano, user_login_required
+from ..wishlist import notifications as wishlist_notifications
+from ..wishlist import service as wishlist_service
+from ..wishlist.models import MediaRequest
 from .covers import artwork_store, cover_limit, remote_cover, uploaded_cover
 from .forms import apply_values, validate_form
-from .models import CONDITIONS, MEDIA_TYPES, ExternalBook, ExternalBookTag
+from .models import AUDIO_FORMATS, CONDITIONS, MEDIA_TYPES, ExternalBook, ExternalBookTag
 from .query import filtered_external_books
 from .thumbnails import metadata_thumbnail, valid_cover_url
 
@@ -39,12 +43,56 @@ def _get_book(book_id):
     return book
 
 
-def _form_context(book=None, errors=None):
+def _prefill_request():
+    request_id = request.args.get("request_id", type=int) or request.form.get("request_id", type=int)
+    if not request_id:
+        return None, None, None
+    entry = ub.session.get(MediaRequest, request_id)
+    if (
+        entry is None
+        or not entry.is_open
+        or entry.content_type not in ("book", "audiobook")
+    ):
+        return None, request_id, None
+    identifiers = entry.identifiers
+    prefill = {
+        "title": entry.title,
+        "authors": " & ".join(entry.authors),
+        "isbn_10": identifiers.get("isbn_10", ""),
+        "isbn_13": identifiers.get("isbn_13", "") or identifiers.get("isbn", ""),
+        "asin": identifiers.get("asin", ""),
+        "metadata_provider": entry.metadata_provider,
+        "metadata_id": entry.metadata_id,
+        "metadata_url": entry.metadata_url,
+        "cover_url": entry.cover_url,
+        "media_type": "audiobook" if entry.content_type == "audiobook" else "physical",
+    }
+    return entry, request_id, prefill
+
+
+def _form_context(book=None, errors=None, request_record=None, request_id=None):
+    form = request.form if request.method == "POST" else {}
+    if request_record is not None and request.method != "POST":
+        identifiers = request_record.identifiers
+        form = {
+            "title": request_record.title,
+            "authors": " & ".join(request_record.authors),
+            "isbn_10": identifiers.get("isbn_10", ""),
+            "isbn_13": identifiers.get("isbn_13", "") or identifiers.get("isbn", ""),
+            "asin": identifiers.get("asin", ""),
+            "metadata_provider": request_record.metadata_provider,
+            "metadata_id": request_record.metadata_id,
+            "metadata_url": request_record.metadata_url,
+            "cover_url": request_record.cover_url,
+            "media_type": "audiobook" if request_record.content_type == "audiobook" else "physical",
+        }
     return {
         "book": book,
-        "form": request.form if request.method == "POST" else {},
+        "form": form,
         "errors": errors or [],
+        "request_id": request_id,
         "media_types": [(value, MEDIA_TYPE_LABELS[value]) for value in MEDIA_TYPES],
+        "audio_formats": AUDIO_FORMATS,
         "conditions": CONDITIONS,
         "metadata_search_url": url_for("metadata.metadata_search"),
         **media_permissions(),
@@ -155,19 +203,29 @@ def detail(book_id):
 @user_login_required
 @media_edit_required
 def new():
+    request_record, request_id, _prefill = _prefill_request()
     if request.method == "POST":
         values, errors = validate_form(request.form)
         book = ExternalBook()
         saved, status = _save_book(book, values, errors, True)
         if saved:
+            if request_record is not None:
+                try:
+                    wishlist_service.fulfill_request(
+                        request_record, current_user.id, external_book_id=book.id
+                    )
+                    wishlist_notifications.notify_request("fulfilled", request_record)
+                except wishlist_service.RequestError as exc:
+                    log.warning("Could not fulfil wishlist request: %s", exc)
             flash(f"Added {book.title} to your personal book library.", "success")
             return redirect(url_for("external_books.detail", book_id=book.id))
         return render_title_template(
             "external_books/form.html", title="Add Book", page="books",
-            **_form_context(errors=errors)
+            **_form_context(errors=errors, request_record=request_record, request_id=request_id)
         ), status
     return render_title_template(
-        "external_books/form.html", title="Add Book", page="books", **_form_context()
+        "external_books/form.html", title="Add Book", page="books",
+        **_form_context(request_record=request_record, request_id=request_id)
     )
 
 

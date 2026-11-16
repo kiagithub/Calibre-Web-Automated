@@ -12,20 +12,23 @@ from flask import (
     request,
     url_for,
 )
-from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from .. import logger, ub
 from ..catalog.read_models import movie_card
+from ..cw_login import current_user
 from ..media.artwork import ArtworkStore, serve_artwork
 from ..media.images import ImageTooLargeError, InvalidImageError, read_image_upload
 from ..media.permissions import media_delete_required, media_edit_required, media_permissions
-from ..media.queries import escaped_like
 from ..pagination import Pagination
 from ..render_template import render_title_template
 from ..usermanagement import login_required_if_no_ano, user_login_required
+from ..wishlist import notifications as wishlist_notifications
+from ..wishlist import service as wishlist_service
+from ..wishlist.models import MediaRequest
 from .metadata import MAX_POSTER_BYTES, MovieMetadataError, TMDBClient
 from .models import Movie
+from .query import filtered_movies
 
 movies = Blueprint("movies", __name__, url_prefix="/movies")
 log = logger.create()
@@ -216,11 +219,28 @@ def _uploaded_poster(errors):
     return (poster.data, poster.extension) if poster else None
 
 
-def _form_context(movie=None, errors=None):
+def _prefill_request():
+    request_id = request.args.get("request_id", type=int) or request.form.get("request_id", type=int)
+    if not request_id:
+        return None, None, None
+    entry = ub.session.get(MediaRequest, request_id)
+    if entry is None or not entry.is_open or entry.content_type != "movie":
+        return None, request_id, None
+    identifiers = entry.identifiers
+    return entry, request_id, {
+        "title": entry.title,
+        "tmdb_id": identifiers.get("tmdb_id", ""),
+        "release_date": identifiers.get("release_date", ""),
+        "director": entry.director,
+    }
+
+
+def _form_context(movie=None, errors=None, prefill=None, request_id=None):
     return {
         "movie": movie,
-        "form": request.form if request.method == "POST" else {},
+        "form": request.form if request.method == "POST" else (prefill or {}),
         "errors": errors or [],
+        "request_id": request_id,
         "formats": MEDIA_FORMATS,
         "conditions": CONDITIONS,
         "metadata_configured": _client().configured,
@@ -249,20 +269,7 @@ def index():
     page = max(request.args.get("page", 1, type=int), 1)
     per_page = 24
 
-    query = ub.session.query(Movie)
-    if query_text:
-        term = escaped_like(query_text)
-        query = query.filter(or_(
-            Movie.title.ilike(term, escape="\\"),
-            Movie.original_title.ilike(term, escape="\\"),
-            Movie.director.ilike(term, escape="\\"),
-            Movie.cast_members.ilike(term, escape="\\"),
-            Movie.genres.ilike(term, escape="\\"),
-            Movie.location.ilike(term, escape="\\"),
-            Movie.barcode.ilike(term, escape="\\"),
-        ))
-    if media_format:
-        query = query.filter(Movie.media_format == media_format)
+    query = filtered_movies(ub.session, query_text, media_format)
     total = query.count()
     sort_column = SORTS.get(sort, SORTS["title"])
     ordering = sort_column.desc() if direction == "desc" else sort_column.asc()
@@ -292,18 +299,19 @@ def detail(movie_id):
 @user_login_required
 @edit_required
 def new():
+    request_record, request_id, prefill = _prefill_request()
     if request.method == "POST":
         values, errors = _validated_form()
         poster = _uploaded_poster(errors)
         if errors:
             return render_title_template("movies/form.html", title="Add Movie", page="movies",
-                                         **_form_context(errors=errors)), 400
+                                         **_form_context(errors=errors, request_id=request_id)), 400
         movie = Movie()
         _apply_values(movie, values)
         ub.session.add(movie)
         if not _flush():
             return render_title_template("movies/form.html", title="Add Movie", page="movies",
-                                         **_form_context()), 500
+                                         **_form_context(request_id=request_id)), 500
         staged_poster = ""
         poster_warning = False
         if poster:
@@ -315,12 +323,21 @@ def new():
         if not _commit():
             _discard_staged_poster(staged_poster)
             return render_title_template("movies/form.html", title="Add Movie", page="movies",
-                                         **_form_context()), 500
+                                         **_form_context(request_id=request_id)), 500
+        if request_record is not None:
+            try:
+                wishlist_service.fulfill_request(
+                    request_record, current_user.id, movie_id=movie.id
+                )
+                wishlist_notifications.notify_request("fulfilled", request_record)
+            except wishlist_service.RequestError as exc:
+                log.warning("Could not fulfil wishlist request: %s", exc)
         if poster_warning:
             flash("The movie was saved, but its poster could not be stored.", "warning")
         flash(f"Added {movie.title} to your movie library.", "success")
         return redirect(url_for("movies.detail", movie_id=movie.id))
-    return render_title_template("movies/form.html", title="Add Movie", page="movies", **_form_context())
+    return render_title_template("movies/form.html", title="Add Movie", page="movies",
+                                 **_form_context(prefill=prefill, request_id=request_id))
 
 
 @movies.route("/<int:movie_id>/edit", methods=["GET", "POST"])

@@ -53,6 +53,41 @@
     return panel.dataset.coverUrl + "?url=" + encodeURIComponent(cover);
   }
 
+  function requestMetadata(context, book, button) {
+    var url = context.panel.dataset.requestUrl;
+    if (!url) return;
+    var identifiers = book.identifiers || {};
+    button.disabled = true;
+    fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {"X-CSRFToken": context.csrf ? context.csrf.value : ""},
+      body: new URLSearchParams({
+        content_type: "book",
+        title: stringValue(book.title),
+        authors: listValue(book.authors).join(" & "),
+        metadata_provider: (book.source || {}).id || "",
+        metadata_id: stringValue(book.id),
+        metadata_url: stringValue(book.url),
+        cover_url: stringValue(book.cover),
+        isbn_13: identifier(identifiers, ["isbn13", "isbn_13", "isbn"]),
+        isbn_10: identifier(identifiers, ["isbn10", "isbn_10"]),
+        asin: identifier(identifiers, ["amazon", "mobi-asin", "asin"])
+      })
+    }).then(function (response) {
+      return response.json().then(function (data) {
+        if (!response.ok) throw new Error(data && data.error ? data.error : "Could not add the request.");
+        return data;
+      });
+    }).then(function (data) {
+      context.status.textContent = data.created ? "Added to wishlist." : "That request is already on the wishlist.";
+    }).catch(function (error) {
+      context.status.textContent = error && error.message ? error.message : "Could not add the request.";
+    }).finally(function () {
+      button.disabled = false;
+    });
+  }
+
   function populateForm(book) {
     var identifiers = book.identifiers || {};
     setField("title", book.title);
@@ -131,13 +166,21 @@
     if (description) copy.appendChild(element("p", "external-books-metadata-result-description", description));
     card.appendChild(copy);
 
+    var actions = element("div", "external-books-metadata-result-actions");
     var apply = element("button", "btn btn-primary", "Use this metadata");
     apply.type = "button";
     apply.addEventListener("click", function () {
       populateForm(book);
       context.status.textContent = "Metadata applied. Review the fields and save your changes.";
     });
-    card.appendChild(apply);
+    actions.appendChild(apply);
+    var request = element("button", "btn btn-default", "Request");
+    request.type = "button";
+    request.addEventListener("click", function () {
+      requestMetadata(context, book, request);
+    });
+    actions.appendChild(request);
+    card.appendChild(actions);
     return card;
   }
 

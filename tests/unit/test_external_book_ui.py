@@ -60,7 +60,8 @@ def test_external_book_form_contains_all_fields_and_separate_forms():
     names = set(re.findall(r'name="([^"]+)"', template))
     expected = {
         "title", "authors", "description", "publisher", "published_date", "series",
-        "series_index", "languages", "page_count", "media_type", "binding", "edition",
+        "series_index", "languages", "page_count", "media_type", "narrator",
+        "duration_minutes", "audio_format", "abridged", "binding", "edition",
         "location", "condition", "date_acquired", "personal_rating", "notes", "isbn_10",
         "isbn_13", "asin", "tags", "cover", "remove_cover", "metadata_provider",
         "metadata_id", "metadata_url", "metadata_selected", "cover_url", "csrf_token",

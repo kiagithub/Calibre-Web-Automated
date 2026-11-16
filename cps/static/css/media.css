@@ -765,8 +765,21 @@
 }
 
 .movie-metadata-apply,
-.external-books-metadata-result > .btn {
+.external-books-metadata-result > .btn,
+.external-books-metadata-result-actions,
+.movie-metadata-result-actions {
   flex: 0 0 auto;
+}
+
+.external-books-metadata-result-actions,
+.movie-metadata-result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.movie-metadata-result-actions form {
+  margin: 0;
 }
 
 .media-form-grid,
@@ -784,7 +797,8 @@
 }
 
 .media-checkbox,
-.external-books-remove-cover {
+.external-books-remove-cover,
+.external-books-checkbox {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -793,7 +807,8 @@
 }
 
 .media-checkbox input,
-.external-books-remove-cover input {
+.external-books-remove-cover input,
+.external-books-checkbox input {
   width: 17px;
   height: 17px;
   margin: 0;
@@ -1095,6 +1110,122 @@ body:not(.blur) .external-books-page {
   color-scheme: light;
 }
 
+/* Wishlist */
+.wishlist-list {
+  display: grid;
+  gap: 16px;
+}
+
+.wishlist-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--media-border);
+  border-radius: 16px;
+  background: var(--media-surface);
+}
+
+.wishlist-card-main {
+  min-width: 0;
+}
+
+.wishlist-card h2 {
+  margin: 4px 0;
+  font-size: 19px;
+  overflow-wrap: anywhere;
+}
+
+.wishlist-type,
+.wishlist-status {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.wishlist-type {
+  background: var(--media-surface-soft);
+  color: var(--media-muted);
+}
+
+.wishlist-status-pending {
+  background: rgba(223, 159, 85, .14);
+  color: var(--media-accent-strong);
+}
+
+.wishlist-status-approved,
+.wishlist-status-fulfilled {
+  background: rgba(87, 201, 180, .18);
+  color: #8ce0cb;
+}
+
+.wishlist-status-rejected {
+  background: rgba(255, 120, 110, .14);
+  color: var(--media-danger-text);
+}
+
+.wishlist-status-cancelled {
+  background: var(--media-surface-soft);
+  color: var(--media-muted);
+}
+
+.wishlist-byline,
+.wishlist-note,
+.wishlist-admin-note {
+  margin: 0 0 6px;
+  color: var(--media-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.wishlist-meta {
+  margin: 8px 0 0;
+  color: var(--media-muted);
+  font-size: 12px;
+}
+
+.wishlist-admin-note {
+  color: var(--media-accent-strong);
+}
+
+.wishlist-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+}
+
+.wishlist-actions form {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+}
+
+.wishlist-actions .form-control {
+  min-height: 34px;
+  height: 34px;
+}
+
+@media (max-width: 767px) {
+  .wishlist-card {
+    flex-direction: column;
+  }
+
+  .wishlist-actions {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .wishlist-actions form {
+    flex-wrap: wrap;
+  }
+}
+
 @media (min-width: 1400px) {
   .media-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1197,8 +1328,11 @@ body:not(.blur) .external-books-page {
     flex-wrap: wrap;
   }
 
-  .external-books-metadata-result > .btn {
+  .external-books-metadata-result > .btn,
+  .external-books-metadata-result-actions,
+  .movie-metadata-result-actions {
     flex: 1 1 100%;
+    width: 100%;
   }
 
   .media-form-grid,

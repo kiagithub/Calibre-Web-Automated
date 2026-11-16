@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block body %}
+<main class="media-page" aria-labelledby="api-keys-heading">
+  <a class="media-back-link" href="{{ url_for('web.profile') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> {{ _('Back to account') }}</a>
+  <header class="media-header media-form-header">
+    <div>
+      <span class="media-eyebrow">{{ _('Developer access') }}</span>
+      <h1 id="api-keys-heading">{{ _('API keys') }}</h1>
+      <p>{{ _('Read-only keys for scripts and dashboards. Send the key as Authorization: Bearer or X-Api-Key.') }}</p>
+    </div>
+  </header>
+
+  {% if raw_key %}
+  <section class="media-panel media-form-section" role="alert">
+    <h2>{{ _('New API key') }}</h2>
+    <p>{{ _('Copy this key now. It will not be shown again.') }}</p>
+    <pre><code>{{ raw_key }}</code></pre>
+  </section>
+  {% endif %}
+
+  <section class="media-panel media-form-section">
+    <div class="media-section-heading"><div><h2>{{ _('Create a key') }}</h2></div></div>
+    <form method="post" action="{{ url_for('media_api.api_keys') }}" class="media-form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group media-field-wide">
+        <label for="api-key-name">{{ _('Key name') }}</label>
+        <input class="form-control" id="api-key-name" name="name" maxlength="100" placeholder="{{ _('Home dashboard') }}">
+      </div>
+      <div class="form-group media-field-wide">
+        <button class="btn btn-primary" type="submit">{{ _('Create key') }}</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="media-panel media-form-section">
+    <div class="media-section-heading"><div><h2>{{ _('Your keys') }}</h2></div></div>
+    {% if keys %}
+    <div class="wishlist-list">
+      {% for key in keys %}
+      <article class="wishlist-card">
+        <div class="wishlist-card-main">
+          <span class="wishlist-type">{{ _('Read only') if key.readonly else _('Read/write') }}</span>
+          <h2>{{ key.name }}</h2>
+          <p class="wishlist-meta">
+            {{ _('Created') }} {{ key.created_at.strftime('%Y-%m-%d') if key.created_at else '' }}
+            {% if key.last_used_at %} · {{ _('Last used') }} {{ key.last_used_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+            {% if key.revoked_at %} · {{ _('Revoked') }} {{ key.revoked_at.strftime('%Y-%m-%d') }}{% endif %}
+          </p>
+        </div>
+        {% if not key.revoked_at %}
+        <div class="wishlist-actions">
+          <form method="post" action="{{ url_for('media_api.revoke_api_key', key_id=key.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger" type="submit">{{ _('Revoke') }}</button>
+          </form>
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="media-muted">{{ _('No API keys yet.') }}</p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

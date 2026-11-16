@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
-from .models import CONDITIONS, MEDIA_TYPES, ExternalBookTag, clean_tag_name, normalize_tag_name
+from .models import AUDIO_FORMATS, CONDITIONS, MEDIA_TYPES, ExternalBookTag, clean_tag_name, normalize_tag_name
 
 TEXT_FIELDS = {
     "title": 300,
@@ -16,6 +16,8 @@ TEXT_FIELDS = {
     "series": 300,
     "series_index": 20,
     "media_type": 20,
+    "narrator": 300,
+    "audio_format": 20,
     "binding": 40,
     "edition": 200,
     "location": 200,
@@ -181,14 +183,20 @@ def validate_form(form):
     if not values["title"]:
         errors.append("Title is required.")
     if values["media_type"] not in MEDIA_TYPES:
-        errors.append("Select Physical, Kindle, or Other digital as the book type.")
+        errors.append("Select Physical, Kindle, Other digital, or Audiobook as the book type.")
     if values["condition"] and values["condition"] not in CONDITIONS:
         errors.append("Select a valid condition.")
+    if values["audio_format"] and values["audio_format"] not in AUDIO_FORMATS:
+        errors.append("Select a valid audiobook format.")
 
     values["published_date"] = _publication_date(values["published_date"], errors)
     values["date_acquired"] = _acquired_date(values["date_acquired"], errors)
     values["page_count"] = _integer(form, "page_count", "Page count", 1, 50000, errors)
+    values["duration_minutes"] = _integer(
+        form, "duration_minutes", "Audiobook duration", 1, 100000, errors
+    )
     values["personal_rating"] = _integer(form, "personal_rating", "Personal rating", 0, 10, errors)
+    values["abridged"] = form.get("abridged") == "on"
     values["authors"] = _string_array(form.get("authors"), "authors", ARRAY_FIELDS["authors"], errors, r"[&\n]+")
     values["languages"] = _string_array(form.get("languages"), "languages", ARRAY_FIELDS["languages"], errors, r"[,\n]+")
     values["tags"] = parse_tags(form.get("tags"), errors)
@@ -206,7 +214,7 @@ def validate_form(form):
 def apply_values(book, values):
     for field in TEXT_FIELDS:
         setattr(book, field, values[field])
-    for field in ("page_count", "personal_rating"):
+    for field in ("page_count", "duration_minutes", "personal_rating", "abridged"):
         setattr(book, field, values[field])
     book.authors = values["authors"]
     book.languages = values["languages"]

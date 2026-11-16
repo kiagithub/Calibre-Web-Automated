@@ -44,6 +44,25 @@ Remaining Phase 1 follow-ups:
 - A `search_by=title|author|isbn` selector for metadata search.
 - Optional Audiobookshelf ownership provider, which moves with the audiobook work in Phase 2.
 
+## Implementation status — Phase 2 (2026-11-15)
+
+Phase 2 is implemented on the `shelfmark` branch:
+
+- `audiobook` media type with narrator, duration, audio format, and abridged fields; form, detail, filters, and migration.
+- Wishlist/request workflow with user creation, admin approval, rejection, reopening, cancellation, and manual fulfilment through the existing Add Book/Add Movie forms.
+- Request metadata prefilled from the search results and from the wishlist fulfil action.
+- Best-effort email notifications for request creation and decisions.
+- Collection stats page and `/api/media/stats`.
+- Read-only media API for books, movies, search, and stats.
+- Hashed, revocable read-only API keys with a profile-menu management page.
+- Unit coverage for wishlist lifecycle, prefill/fulfilment, audiobook fields and migration, stats, API authentication, and API-key management.
+
+Remaining Phase 2 follow-ups:
+
+- Optional Audiobookshelf ownership provider.
+- Per-user request policies and overrides (planned for Phase 3).
+- URL-persisted `owned` filter and `search_by` selector from Phase 1.
+
 ---
 
 ## 2. Goals and non-goals

@@ -10,6 +10,7 @@ MEDIA_TYPE_LABELS = {
     "physical": "Physical",
     "kindle": "Kindle",
     "other_digital": "Other digital",
+    "audiobook": "Audiobook",
 }
 
 
