@@ -284,6 +284,36 @@ class TestMovieRoutes:
         assert response.status_code == 302
         assert db_session.query(Movie).count() == 0
 
+    def test_metadata_search_annotates_owned_when_requested(self, movie_app, monkeypatch):
+        app, _session, _ = movie_app
+
+        class FakeClient:
+            configured = True
+
+            def search(self, _query, _year):
+                return [{"tmdb_id": 1, "title": "Arrival", "original_title": "Arrival", "year": "2016"}]
+
+        monkeypatch.setattr(routes, "_client", lambda: FakeClient())
+        import cps.media.library_check as library_check
+
+        def annotate(results):
+            for item in results:
+                item["owned"] = True
+                item["owned_as"] = "Movies"
+            return results
+
+        monkeypatch.setattr(library_check, "annotate_movies", annotate)
+        client = app.test_client()
+
+        annotated = client.post(
+            "/movies/metadata/search", json={"query": "Arrival", "check_owned": True}
+        )
+        plain = client.post("/movies/metadata/search", json={"query": "Arrival"})
+
+        assert annotated.status_code == 200
+        assert annotated.get_json()["results"][0]["owned"] is True
+        assert "owned" not in plain.get_json()["results"][0]
+
     def test_invalid_form_does_not_create_movie(self, movie_app):
         app, db_session, _ = movie_app
         response = app.test_client().post("/movies/new", data={"title": "", "release_date": "not-a-date"})
@@ -571,6 +601,7 @@ def test_movie_templates_use_shared_cards_permissions_and_accessible_results():
     assert 'role="status" aria-live="polite"' in form
     assert 'aria-busy="false"' in form
     assert 'class="media-metadata-results-heading movie-metadata-results-heading" tabindex="-1"' in form
+    assert 'id="movie-hide-owned"' in form
 
 
 @pytest.mark.unit
@@ -586,3 +617,6 @@ def test_movie_metadata_js_preserves_focus_and_safe_dom_construction():
     assert 'results.setAttribute("aria-busy", "true")' in shared
     assert 'results.setAttribute("aria-busy", "false")' in shared
     assert '"X-CSRFToken"' in script
+    assert "check_owned: true" in script
+    assert "movie-metadata-result-badge" in script
+    assert "card.dataset.owned" in script

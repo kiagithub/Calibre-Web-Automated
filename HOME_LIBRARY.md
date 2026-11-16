@@ -41,6 +41,8 @@ Enabled providers run side by side. The search responds shortly after the first 
 
 Every result shows a small cover thumbnail beside its details. Thumbnails load lazily through a bounded server-side route, use the same Advocate/local-address policy and image checks as saved covers, are downscaled to thumbnail size, and are cached in memory. Applying metadata still records the provider's full cover URL; the thumbnail is only a preview.
 
+Results already in the library carry an **In library** badge naming the source (Calibre or Personal), and a **Hide owned** toggle filters them out. Providers are deduplicated by provider ID, ISBN-10/13, or normalized title plus author, and Open Library is included as a free provider.
+
 Movie and personal-book metadata search share the fetch, status, error, and focus lifecycle in `cps/static/js/metadata_search.js`; each keeps its own request format and result rendering.
 
 Metadata updates preserve the owned-copy fields, media type, personal tags, location, condition, acquisition details, rating, and notes. Provider tags are suggestions rather than silent replacements.
@@ -50,6 +52,7 @@ Records and ratings are shared across library users, matching the movie collecti
 ### Movies and shared media safety
 
 - TMDB title/year search, metadata import, and refresh retain the existing movie workflows.
+- TMDB search results show an **In library · Movies** badge when the movie is already in the collection, with a **Hide owned** toggle.
 - Movie lists sorted by "added" use an indexed `movie.created_at`; startup creates the index idempotently for existing `app.db` files as well as new ones.
 - DVD, Blu-ray, 4K UHD, VHS, LaserDisc, Digital, Other, and condition choices are validated server-side.
 - Movie and book artwork share bounded image validation, local atomic storage, safe response handling, and upload/download limits.
@@ -254,6 +257,18 @@ Use CWA's existing upload control or move completed files into `/cwa-book-ingest
 3. Alternatively, complete the manual form and upload a poster.
 4. To correct a match later, open the movie, choose **Edit**, and use **Find it on TMDB**. Selecting a result refreshes descriptive metadata without resetting physical-copy details.
 
+### Search URLs
+
+Filters and sorts are ordinary GET parameters, so searches can be bookmarked or shared:
+
+| Surface | Example | Parameters |
+| --- | --- | --- |
+| Combined books | `/books/?q=dune&source=all` | `q`, `source`, `media_type`, `tag`, `sort`, `direction`, `cursor`, `dir` |
+| Personal books | `/books/personal/?q=dune&media_type=physical` | `q`, `media_type`, `tag`, `sort`, `direction`, `page` |
+| Movies | `/movies/?q=arrival&format=Blu-ray` | `q`, `format`, `sort`, `direction`, `page` |
+
+Combined books use cursor-based pagination; use the Previous/Next links the page generates rather than constructing `cursor` values by hand. The **Hide owned** toggle is a client-side filter on metadata search results and is not currently a URL parameter.
+
 ## Development checks
 
 The project requires Python 3.10 or newer; the current focused suite uses Python 3.13. Provider responses are mocked in unit tests and do not require credentials or live network access. Legacy tests that load stubbed `cps` modules restore `sys.modules` after each module, so `pytest tests/unit` is no longer order-dependent.
@@ -276,20 +291,22 @@ Feature-specific coverage lives in:
 - `tests/unit/test_book_card_accessibility.py`, `test_jinjia_filters.py`, and `test_route_auth.py`
 - `tests/unit/test_env_example.py` and `test_hardcover_headers.py`
 - `tests/unit/test_favicon.py` covers the SVG brand mark, ICO sizes, PNG dimensions, and template fallback order
+- `tests/unit/test_library_check.py`, `test_library_check_providers.py`, and `test_metadata_merge.py` cover ownership matching, provider indexes, and deduplication
+- `tests/unit/test_openlibrary_provider.py` covers Open Library parsing and failure handling
 
 Known pre-existing failures in the current environment:
 
 - `tests/unit/test_oauth_session.py` has three stale tests that call removed `*_logged_in` functions.
 - `tests/unit/test_ingest_watchers.py::test_ingest_service_shell_script` is environment-specific.
 
-The suite is order-independent and currently reports 444 passed, 18 skipped, 4 failed (the failures above).
+The suite is order-independent and currently reports 470 passed, 18 skipped, 4 failed (the failures above).
 
 A full browser check should exercise Home, Books, Movies, add/edit/delete, metadata selection, filters, collapsed navigation, keyboard focus, and desktop/mobile overflow against an isolated Docker config/library.
 
 ## Current status
 
 - The Home Library features above are implemented on `feature/physical-movies` and pushed to `origin`.
-- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, and the book-and-play favicon.
+- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, and Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication.
 
 ## Optional follow-ups
 

@@ -17,12 +17,22 @@
 
   function renderResult(movie, context) {
     var card = element("article", "movie-metadata-result");
+    card.dataset.owned = movie.owned ? "true" : "false";
+    var hideOwned = context.panel.querySelector("#movie-hide-owned");
+    card.hidden = !!(hideOwned && hideOwned.checked && movie.owned);
     var copy = element("div", "movie-metadata-result-copy");
     copy.appendChild(element(
       "h4",
       "movie-metadata-result-title",
       movie.title + (movie.year ? " (" + movie.year + ")" : "")
     ));
+    if (movie.owned) {
+      copy.appendChild(element(
+        "span",
+        "movie-metadata-result-badge",
+        "In library" + (movie.owned_as ? " · " + movie.owned_as : "")
+      ));
+    }
 
     var facts = [];
     if (movie.tmdb_rating !== null) facts.push("TMDB " + movie.tmdb_rating + "/10");
@@ -53,6 +63,16 @@
 
   function initMetadataSearch() {
     if (!metadataSearch) return;
+    var panel = document.getElementById("metadata-search");
+    var hideOwned = panel && panel.querySelector("#movie-hide-owned");
+    var resultList = panel && panel.querySelector(".movie-metadata-result-list");
+    if (hideOwned && resultList) {
+      hideOwned.addEventListener("change", function () {
+        resultList.querySelectorAll("[data-owned='true']").forEach(function (card) {
+          card.hidden = hideOwned.checked;
+        });
+      });
+    }
     metadataSearch.init({
       formSelector: ".movie-metadata-search-form",
       resultsSelector: ".movie-metadata-results",
@@ -73,7 +93,7 @@
             "Content-Type": "application/json",
             "X-CSRFToken": csrf ? csrf.value : ""
           },
-          body: JSON.stringify({query: query, year: form.elements.year.value})
+          body: JSON.stringify({query: query, year: form.elements.year.value, check_owned: true})
         };
       },
       parseResponse: function (data) {

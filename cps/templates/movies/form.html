@@ -24,7 +24,10 @@
     {% if not movie %}<div class="media-import-defaults movie-import-defaults"><label>Format for imported copy <select id="import-format" class="form-control">{% for format in formats %}<option value="{{ format }}" {% if format == 'Blu-ray' %}selected{% endif %}>{{ format }}</option>{% endfor %}</select></label><label>Shelf / location <input id="import-location" class="form-control" maxlength="200" placeholder="e.g. Living room · Shelf 2"></label></div>{% endif %}
     <p class="movie-search-status movie-metadata-status" role="status" aria-live="polite" aria-atomic="true"></p>
     <div class="media-metadata-results movie-metadata-results" aria-busy="false">
-      <h3 id="metadata-results-heading" class="media-metadata-results-heading movie-metadata-results-heading" tabindex="-1">Search results</h3>
+      <div class="movie-metadata-results-heading-row">
+        <h3 id="metadata-results-heading" class="media-metadata-results-heading movie-metadata-results-heading" tabindex="-1">Search results</h3>
+        <label class="movie-owned-toggle"><input type="checkbox" id="movie-hide-owned"> Hide owned</label>
+      </div>
       <div class="media-metadata-result-list movie-metadata-result-list" aria-labelledby="metadata-results-heading"></div>
     </div>
     {% else %}

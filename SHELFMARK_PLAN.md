@@ -26,6 +26,26 @@ The recommended order is: ownership badges and Open Library first; audiobooks an
 
 ---
 
+## Implementation status — Phase 1 (2026-11-15)
+
+Phase 1 is implemented on the `shelfmark` branch:
+
+- Read-only ownership index for Calibre, personal books, and movies, cached for 10 minutes and refreshed when the underlying data changes.
+- **In library** badges in personal-book metadata search and TMDB movie search, naming the source (Calibre, Personal, or Movies).
+- **Hide owned** toggle on both metadata-search result lists.
+- Open Library metadata provider (no API key).
+- Cross-provider deduplication by provider ID, ISBN-10/13, or normalized title + author.
+- Documented search URL parameters.
+- Unit coverage for matching, provider indexes, deduplication, Open Library parsing, route annotations, and UI contracts.
+
+Remaining Phase 1 follow-ups:
+
+- `owned=hide|only|all` as a URL-persisted catalog filter (the checkbox currently filters client-side only).
+- A `search_by=title|author|isbn` selector for metadata search.
+- Optional Audiobookshelf ownership provider, which moves with the audiobook work in Phase 2.
+
+---
+
 ## 2. Goals and non-goals
 
 ### Goals
@@ -140,7 +160,7 @@ The recommended order is: ownership badges and Open Library first; audiobooks an
 2. Exact movie identifier: TMDB or IMDb ID.
 3. Fuzzy fallback:
    - Books: significant title tokens + author surname, with guards for sequels, series labels, numbered parentheticals, editions/adaptations, multi-book packs, and “unabridged”/printing words.
-   - Movies: normalized title + release year (±1) + director; reject obvious sequels/remakes unless year and director agree.
+   - Movies: normalized title + release year (±1); the Phase 1 TMDB search summary does not include director, so director is only used when a future details-based check supplies it. Reject obvious sequels/remakes when the years disagree.
 4. A bundled/omnibus match may be reported as “In library (collection)” rather than a plain “owned” badge.
 
 **Data**
@@ -752,8 +772,8 @@ For movies:
 
 1. Exact TMDB ID.
 2. Exact IMDb ID.
-3. Normalized title + release year (±1) + director.
-4. Reject remakes/sequels unless year and director agree.
+3. Normalized title + release year (±1), plus director when the source provides it. Phase 1's TMDB search summaries expose TMDB ID and title/year but not director.
+4. Reject remakes/sequels when the years disagree.
 5. A movie in a collection/box set may be reported as “In library (collection)”.
 
 ---
@@ -806,6 +826,8 @@ Responses omit file paths, provider tokens, user emails, and admin notes unless 
 | `api_key_readonly` | Optional read-only dashboard key | empty |
 
 All settings are optional, default-off where they enable outbound network calls, and editable from the CWA settings UI.
+
+Phase 1 implements the local Calibre/personal/movie checks as always-on, read-only, cached lookups; the `library_check_*_enabled` toggles are proposed for a later phase, when optional external providers (Audiobookshelf/Plex) are added.
 
 ---
 

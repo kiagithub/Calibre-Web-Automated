@@ -77,8 +77,11 @@
 
   function renderResult(book, context) {
     var card = element("article", "external-books-metadata-result");
+    card.dataset.owned = book.owned ? "true" : "false";
     var copy = element("div", "external-books-metadata-result-copy");
     var source = book.source || {};
+    var hideOwned = context.panel.querySelector("#metadata-hide-owned");
+    card.hidden = !!(hideOwned && hideOwned.checked && book.owned);
 
     var cover = element("img", "external-books-metadata-result-cover");
     cover.src = coverSource(context.panel, book);
@@ -102,6 +105,13 @@
     }
     if (source.description || source.id) {
       copy.appendChild(element("p", "external-books-metadata-result-source", source.description || source.id));
+    }
+    if (book.owned) {
+      copy.appendChild(element(
+        "span",
+        "external-books-metadata-result-badge",
+        "In library" + (book.owned_as ? " · " + book.owned_as : "")
+      ));
     }
 
     var facts = [];
@@ -133,6 +143,16 @@
 
   function initMetadataSearch() {
     if (!metadataSearch) return;
+    var panel = document.getElementById("metadata-search");
+    var hideOwned = panel && panel.querySelector("#metadata-hide-owned");
+    var resultList = panel && panel.querySelector(".external-books-metadata-result-list");
+    if (hideOwned && resultList) {
+      hideOwned.addEventListener("change", function () {
+        resultList.querySelectorAll("[data-owned='true']").forEach(function (card) {
+          card.hidden = hideOwned.checked;
+        });
+      });
+    }
     metadataSearch.init({
       formSelector: ".external-books-metadata-search-form",
       resultListSelector: ".external-books-metadata-result-list",
@@ -149,7 +169,7 @@
       buildRequest: function (query, form, csrf) {
         return {
           headers: {"X-CSRFToken": csrf ? csrf.value : ""},
-          body: new URLSearchParams({query: query})
+          body: new URLSearchParams({query: query, check_owned: "1"})
         };
       },
       parseResponse: function (data) {

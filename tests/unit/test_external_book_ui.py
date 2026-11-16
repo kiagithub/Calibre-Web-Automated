@@ -78,13 +78,16 @@ def test_external_book_form_contains_all_fields_and_separate_forms():
     assert 'class="external-books-metadata-results-heading" tabindex="-1"' in template
     assert 'data-cover-url=' in template
     assert 'data-generic-cover=' in template
+    assert 'id="metadata-hide-owned"' in template
 
 
 def test_external_book_metadata_js_uses_safe_dom_and_shared_skeleton():
     script = (REPO_ROOT / "cps" / "static" / "js" / "external_books.js").read_text(encoding="utf-8")
 
-    assert "new URLSearchParams({query: query})" in script
+    assert 'new URLSearchParams({query: query, check_owned: "1"})' in script
     assert '"X-CSRFToken"' in script
+    assert "external-books-metadata-result-badge" in script
+    assert 'card.dataset.owned' in script
     assert "new DOMParser().parseFromString" in script
     assert 'querySelectorAll("script, style")' in script
     assert ".innerHTML" not in script
@@ -145,3 +148,14 @@ def test_metadata_thumbnail_css_overrides_the_legacy_container_image_rule():
     assert ".external-books-page .external-books-metadata-result-cover" in css
     assert "max-width: 60px" in css
     assert "box-shadow: none" in css
+
+
+def test_owned_badge_and_toggle_styles_exist():
+    css = (REPO_ROOT / "cps" / "static" / "css" / "media.css").read_text(encoding="utf-8")
+
+    assert ".external-books-metadata-result-badge" in css
+    assert ".external-books-owned-toggle" in css
+    assert ".movie-metadata-result-badge" in css
+    assert ".movie-owned-toggle" in css
+    assert ".external-books-page [hidden]" in css
+    assert "display: none !important;" in css

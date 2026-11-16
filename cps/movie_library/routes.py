@@ -388,8 +388,13 @@ def metadata_search():
     payload = request.get_json(silent=True) or request.form
     query = payload.get("query", "")
     year = payload.get("year", "")
+    check_owned = str(payload.get("check_owned", "")).lower() in ("1", "true", "on")
     try:
         results = _client().search(query, year)
+        if check_owned:
+            from ..media.library_check import annotate_movies
+
+            results = annotate_movies([dict(item) for item in results])
         return jsonify({"results": results})
     except MovieMetadataError as exc:
         return jsonify({"error": str(exc)}), 503 if not _client().configured else 400

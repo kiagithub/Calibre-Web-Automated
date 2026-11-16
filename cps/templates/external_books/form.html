@@ -29,7 +29,10 @@
     </form>
     <p class="external-books-metadata-status" role="status" aria-live="polite"></p>
     <div class="external-books-metadata-results">
-      <h3 id="metadata-results-heading" class="external-books-metadata-results-heading" tabindex="-1">{{ _('Search results') }}</h3>
+      <div class="external-books-metadata-results-heading-row">
+        <h3 id="metadata-results-heading" class="external-books-metadata-results-heading" tabindex="-1">{{ _('Search results') }}</h3>
+        <label class="external-books-owned-toggle"><input type="checkbox" id="metadata-hide-owned"> {{ _('Hide owned') }}</label>
+      </div>
       <div class="external-books-metadata-result-list" aria-labelledby="metadata-results-heading"></div>
     </div>
   </section>

@@ -22,6 +22,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from cps.services.Metadata import Metadata
 from . import constants, logger, ub, web_server
+from .metadata_merge import dedupe_records
 from .usermanagement import user_login_required
 
 
@@ -290,7 +291,9 @@ def metadata_change_active_provider(prov_name):
 @meta.route("/metadata/search", methods=["POST"])
 @user_login_required
 def metadata_search():
-    query = (request.form.to_dict().get("query") or "").strip()[:300]
+    form = request.form.to_dict()
+    query = (form.get("query") or "").strip()[:300]
+    check_owned = str(form.get("check_owned", "")).lower() in ("1", "true", "on")
     if not query:
         return make_response(jsonify([]))
     active = current_user.view_settings.get("metadata", {})
@@ -299,13 +302,21 @@ def metadata_search():
     providers = _enabled_providers(active, global_enabled)
     key = _cache_key(query, locale, providers)
     cached = _cache_get(key)
+    partial = False
     if cached is not None:
-        return make_response(jsonify(cached))
+        data = cached
+    else:
+        static_cover = url_for("static", filename="generic_cover.svg")
+        data, partial = _search_providers(query, providers, static_cover, locale)
+        data = dedupe_records(data)
+        if not partial:
+            _cache_set(key, data)
 
-    static_cover = url_for("static", filename="generic_cover.svg")
-    data, partial = _search_providers(query, providers, static_cover, locale)
-    if not partial:
-        _cache_set(key, data)
+    if check_owned and data:
+        from .media.library_check import annotate_books
+
+        data = annotate_books([dict(item) for item in data])
+
     response = make_response(jsonify(data))
     if partial:
         response.headers["X-Metadata-Partial"] = "true"

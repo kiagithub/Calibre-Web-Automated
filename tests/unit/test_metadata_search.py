@@ -143,6 +143,31 @@ class TestMetadataSearch:
         assert response.get_json() == []
         assert provider.calls == 0
 
+    def test_check_owned_annotates_results_without_caching_annotations(
+        self, metadata_app, monkeypatch
+    ):
+        provider = FakeProvider([record("fake", "Dune")])
+        monkeypatch.setattr(search_metadata, "cl", [provider])
+        import cps.media.library_check as library_check
+
+        def annotate(results):
+            for item in results:
+                item["owned"] = True
+                item["owned_as"] = "Calibre"
+            return results
+
+        monkeypatch.setattr(library_check, "annotate_books", annotate)
+        client = metadata_app.test_client()
+
+        annotated = client.post(
+            "/metadata/search", data={"query": "dune", "check_owned": "1"}
+        )
+        plain = client.post("/metadata/search", data={"query": "dune"})
+
+        assert annotated.get_json()[0]["owned"] is True
+        assert annotated.get_json()[0]["owned_as"] == "Calibre"
+        assert "owned" not in plain.get_json()[0]
+
     def test_disabled_provider_is_not_called(self, metadata_app, monkeypatch):
         enabled = FakeProvider([record("enabled", "Enabled")])
         disabled = FakeProvider([record("disabled", "Disabled")])

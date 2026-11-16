@@ -26,6 +26,11 @@
   box-sizing: border-box;
 }
 
+.media-page [hidden],
+.external-books-page [hidden] {
+  display: none !important;
+}
+
 .media-page :where(h1, h2, h3, h4, p),
 .external-books-page :where(h1, h2, h3, h4, p) {
   margin-top: 0;
@@ -622,6 +627,51 @@
   color: var(--media-text);
   font-size: 16px;
   line-height: 1.4;
+}
+
+.external-books-metadata-results-heading-row,
+.movie-metadata-results-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--media-border);
+}
+
+.external-books-metadata-results-heading-row .external-books-metadata-results-heading,
+.movie-metadata-results-heading-row .movie-metadata-results-heading {
+  padding: 0;
+  border-top: 0;
+}
+
+.external-books-owned-toggle,
+.movie-owned-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--media-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.external-books-metadata-result-badge,
+.movie-metadata-result-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 0 0 7px;
+  padding: 3px 8px;
+  border: 1px solid rgba(223, 159, 85, .45);
+  border-radius: 999px;
+  background: rgba(223, 159, 85, .12);
+  color: var(--media-accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
 
 .movie-metadata-status,
