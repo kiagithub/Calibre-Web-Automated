@@ -46,7 +46,10 @@
         </select>
       </div>
       <button class="btn btn-primary" type="submit">{{ _('Apply filters') }}</button>
-      {% if query_text or selected_type or selected_tag or selected_source != 'all' %}<a class="btn btn-default" href="{{ url_for('catalog.index') }}">{{ _('Clear filters') }}</a>{% endif %}
+      {% if current_user.is_authenticated %}
+      <button class="btn btn-default" type="submit" name="save_defaults" value="1" title="{{ _('Save selected source and personal book type as your default view') }}">{{ _('Save as default') }}</button>
+      {% endif %}
+      {% if query_text or selected_type or selected_tag or selected_source != 'all' %}<a class="btn btn-default" href="{{ url_for('catalog.index', source='all') }}">{{ _('Clear filters') }}</a>{% endif %}
     </form>
     <p class="media-total">{{ total }} {{ _('book') if total == 1 else _('books') }} · {{ _('Recently added') }}</p>
   </section>

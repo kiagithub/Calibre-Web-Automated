@@ -688,7 +688,7 @@ Deliverables:
 
 - Databáze knih / Moly.hu providers behind settings.
 - Apprise notifications.
-- Per-user search defaults.
+- Per-user search defaults (implemented).
 - Custom post-fulfilment hooks (if a concrete need appears).
 
 ---

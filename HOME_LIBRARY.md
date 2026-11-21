@@ -7,7 +7,7 @@ Home Library extends [Calibre-Web-Automated](https://github.com/crocodilestick/C
 ### Home and navigation
 
 - Home has independent **Books** and **Movies** rows with recent items and source-specific detail links.
-- **Books** combines Calibre and personal records in a recent-first catalog with cursor-based Previous/Next pagination. Numbered page jumps are not offered; legacy `?page=N` links redirect to the first page.
+- **Books** combines Calibre and personal records in a recent-first catalog with cursor-based Previous/Next pagination. Users can save default source and personal book type preferences via **Save as default**. Numbered page jumps are not offered; legacy `?page=N` links redirect to the first page.
 - **Calibre library** retains the existing Calibre lists, sorting, filters, file actions, shelves, and specialized views.
 - **Personal books** provides dedicated management for records without Calibre files.
 - **Movies** retains the existing physical-movie shelf.
@@ -316,20 +316,21 @@ Feature-specific coverage lives in:
 - `tests/unit/test_openlibrary_provider.py` covers Open Library parsing and failure handling
 - `tests/unit/test_wishlist.py` covers request creation, moderation, limits, and fulfilment
 - `tests/unit/test_media_api.py` covers read-only API auth, serialization, filters, stats, and API-key management
+- `tests/unit/test_media_preferences.py` and `tests/unit/test_catalog_routes.py` cover per-user catalog view defaults and persistence
 
 Known pre-existing failures in the current environment:
 
 - `tests/unit/test_oauth_session.py` has three stale tests that call removed `*_logged_in` functions.
 - `tests/unit/test_ingest_watchers.py::test_ingest_service_shell_script` is environment-specific.
 
-The suite is order-independent and currently reports 499 passed, 18 skipped, 4 failed (the failures above).
+The suite is order-independent and currently reports 507 passed, 18 skipped, 4 failed (the failures above).
 
 A full browser check should exercise Home, Books, Movies, add/edit/delete, metadata selection, filters, collapsed navigation, keyboard focus, and desktop/mobile overflow against an isolated Docker config/library.
 
 ## Current status
 
 - The Home Library features above are implemented on `feature/physical-movies` and pushed to `origin`.
-- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync, notification preferences, per-user request policies, and companion-library links, and Phase 4 optional Audiobookshelf ownership provider.
+- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync, notification preferences, per-user request policies, and companion-library links, and Phase 4 optional Audiobookshelf ownership provider and per-user catalog view defaults.
 
 ## Optional follow-ups
 

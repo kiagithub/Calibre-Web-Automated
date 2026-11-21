@@ -3,8 +3,10 @@
 
 from flask import Blueprint, redirect, request, url_for
 
-from ..media import media_permissions
+from ..cw_login import current_user
 from ..external_books.models import MEDIA_TYPES
+from ..media import media_permissions
+from ..media.preferences import catalog_defaults, set_catalog_defaults
 from ..pagination import KeysetPagination
 from ..render_template import render_title_template
 from ..usermanagement import login_required_if_no_ano
@@ -26,11 +28,15 @@ def _page_url(filters, cursor, direction):
 @catalog.route("/")
 @login_required_if_no_ano
 def index():
+    defaults = catalog_defaults(current_user)
+    default_source = defaults.get("source", "all")
+    default_media_type = defaults.get("media_type", "")
+
     query_text = request.args.get("q", "").strip()[:200]
-    source = request.args.get("source", "all")
+    source = request.args.get("source", default_source)
     if source not in ("all", "calibre", "external"):
         source = "all"
-    media_type = request.args.get("media_type", "").strip()
+    media_type = request.args.get("media_type", default_media_type).strip()
     if media_type not in MEDIA_TYPES:
         media_type = ""
     tag = request.args.get("tag", "").strip()[:100]
@@ -38,6 +44,11 @@ def index():
     direction = request.args.get("dir", "next")
     if direction not in ("next", "prev"):
         direction = "next"
+
+    if request.args.get("save_defaults") == "1" and getattr(current_user, "is_authenticated", False):
+        set_catalog_defaults(current_user, {"source": source, "media_type": media_type})
+        defaults = catalog_defaults(current_user)
+
     filters = {"q": query_text, "source": source, "media_type": media_type, "tag": tag}
     if "page" in request.args and not cursor:
         # Numbered page links are gone; keep old bookmarks working at the start.
@@ -58,8 +69,19 @@ def index():
         query_text=query_text, searchterm=query_text, selected_source=source, selected_type=media_type,
         selected_tag=tag, tags=tags,
         types=[(value, MEDIA_TYPE_LABELS[value]) for value in MEDIA_TYPES],
+        catalog_defaults=defaults,
         **media_permissions(),
     )
+
+
+@catalog.route("/defaults", methods=["POST"])
+@login_required_if_no_ano
+def save_defaults():
+    if getattr(current_user, "is_authenticated", False):
+        source = request.form.get("source", "all")
+        media_type = request.form.get("media_type", "")
+        set_catalog_defaults(current_user, {"source": source, "media_type": media_type})
+    return redirect(url_for("catalog.index"))
 
 
 @catalog.route("/calibre")

@@ -24,6 +24,10 @@ class FakeUser:
     locale = "en"
     name = "Test user"
     kindle_mail = ""
+    view_settings = None
+
+    def __init__(self, view_settings=None):
+        self.view_settings = view_settings or {}
 
     def role_admin(self):
         return False
@@ -131,6 +135,72 @@ def test_calibre_drilldown_uses_existing_book_list(catalog_app):
     response = catalog_app.test_client().get("/books/calibre?sort=title&page=2")
     assert response.status_code == 302
     assert response.location.endswith("/newest/title/1/2")
+
+
+@pytest.mark.unit
+def test_combined_catalog_route_applies_user_defaults(catalog_app, monkeypatch):
+    captured = {}
+
+    def fake_combined_books(**kwargs):
+        captured.update(kwargs)
+        return CatalogResult([], total=0, per_page=24)
+
+    monkeypatch.setattr(routes, "combined_books", fake_combined_books)
+    monkeypatch.setattr(routes, "catalog_defaults", lambda _user: {"source": "external", "media_type": "kindle"})
+
+    response = catalog_app.test_client().get("/books/")
+    assert response.status_code == 200
+    assert captured["source"] == "external"
+    assert captured["media_type"] == "kindle"
+
+
+@pytest.mark.unit
+def test_combined_catalog_route_explicit_params_override_defaults(catalog_app, monkeypatch):
+    captured = {}
+
+    def fake_combined_books(**kwargs):
+        captured.update(kwargs)
+        return CatalogResult([], total=0, per_page=24)
+
+    monkeypatch.setattr(routes, "combined_books", fake_combined_books)
+    monkeypatch.setattr(routes, "catalog_defaults", lambda _user: {"source": "external", "media_type": "kindle"})
+
+    response = catalog_app.test_client().get("/books/?source=calibre&media_type=")
+    assert response.status_code == 200
+    assert captured["source"] == "calibre"
+    assert captured["media_type"] == ""
+
+
+@pytest.mark.unit
+def test_combined_catalog_save_defaults_param(catalog_app, monkeypatch):
+    saved = {}
+
+    def fake_set_defaults(_user, defaults):
+        saved.update(defaults)
+        return True
+
+    monkeypatch.setattr(routes, "set_catalog_defaults", fake_set_defaults)
+    monkeypatch.setattr(routes, "combined_books", lambda **_kwargs: CatalogResult([], total=0, per_page=24))
+
+    response = catalog_app.test_client().get("/books/?source=external&media_type=audiobook&save_defaults=1")
+    assert response.status_code == 200
+    assert saved == {"source": "external", "media_type": "audiobook"}
+
+
+@pytest.mark.unit
+def test_combined_catalog_defaults_post_route(catalog_app, monkeypatch):
+    saved = {}
+
+    def fake_set_defaults(_user, defaults):
+        saved.update(defaults)
+        return True
+
+    monkeypatch.setattr(routes, "set_catalog_defaults", fake_set_defaults)
+
+    response = catalog_app.test_client().post("/books/defaults", data={"source": "calibre", "media_type": ""})
+    assert response.status_code == 302
+    assert response.location.endswith("/books/")
+    assert saved == {"source": "calibre", "media_type": ""}
 
 
 @pytest.mark.unit
