@@ -76,7 +76,7 @@ Phase 3 is implemented on the `shelfmark` branch:
 
 Remaining Phase 3/4 follow-ups:
 
-- Optional Audiobookshelf ownership provider.
+- Optional Audiobookshelf ownership provider (implemented).
 - Apprise/multi-route notifications.
 - URL-persisted `owned` filter and `search_by` selector.
 - Custom post-fulfilment hooks, only if a concrete need appears.

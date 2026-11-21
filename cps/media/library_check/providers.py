@@ -4,7 +4,9 @@
 """Read-only library indexes for ownership checks."""
 
 import os
+from urllib.parse import urlparse
 
+import requests
 from sqlalchemy import func
 from sqlalchemy.orm import noload, selectinload
 
@@ -37,6 +39,97 @@ def personal_fingerprint():
 def movie_fingerprint():
     count, updated = ub.session.query(func.count(Movie.id), func.max(Movie.updated_at)).one()
     return int(count or 0), updated
+
+
+def _audiobookshelf_config():
+    enabled = os.getenv("AUDIOBOOKSHELF_CHECK_ENABLED", "false").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+    url = os.getenv("AUDIOBOOKSHELF_URL", "").strip().rstrip("/")
+    token = os.getenv("AUDIOBOOKSHELF_TOKEN", "").strip()
+    library_ids = [
+        value.strip()
+        for value in os.getenv("AUDIOBOOKSHELF_LIBRARY_IDS", "").split(",")
+        if value.strip()
+    ]
+    if not enabled or not url or not token:
+        return None
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return None
+    return url, token, library_ids
+
+
+def audiobookshelf_enabled():
+    return _audiobookshelf_config() is not None
+
+
+def audiobookshelf_entries():
+    config = _audiobookshelf_config()
+    if config is None:
+        return []
+    url, token, library_ids = config
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(f"{url}/api/libraries", headers=headers, timeout=15)
+    response.raise_for_status()
+    payload = response.json()
+    libraries = payload.get("libraries") if isinstance(payload, dict) else []
+    if not isinstance(libraries, list):
+        raise ValueError("Audiobookshelf returned an invalid library list.")
+    selected = []
+    for library in libraries:
+        if not isinstance(library, dict) or not library.get("id"):
+            continue
+        if library_ids:
+            if library["id"] in library_ids:
+                selected.append(library["id"])
+        elif library.get("mediaType") == "book":
+            selected.append(library["id"])
+
+    entries = []
+    for library_id in selected:
+        page = 0
+        while True:
+            response = requests.get(
+                f"{url}/api/libraries/{library_id}/items",
+                headers=headers,
+                params={"limit": 500, "page": page},
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("results") if isinstance(data, dict) else None
+            if not isinstance(results, list):
+                raise ValueError("Audiobookshelf returned an invalid item list.")
+            total = int(data.get("total", 0) or 0)
+            entries.extend(
+                _audiobookshelf_entry(item)
+                for item in results
+                if isinstance(item, dict)
+            )
+            page += 1
+            if not results or len(results) < 500 or (total > 0 and page * 500 >= total):
+                break
+    return entries
+
+
+def _audiobookshelf_entry(item):
+    media = item.get("media") or {}
+    metadata = media.get("metadata") or {}
+    title = str(metadata.get("title") or "")
+    author = str(metadata.get("authorName") or "")
+    series = str(metadata.get("seriesName") or "")
+    title_tokens, author_tokens, series_tokens = _tokens_for(title, [author], series)
+    asin = str(metadata.get("asin") or "").strip().upper()
+    return LibraryEntry(
+        kind="audiobook",
+        title_tokens=title_tokens,
+        tokens=title_tokens | author_tokens | series_tokens,
+        author_tokens=author_tokens,
+        series_tokens=series_tokens,
+        isbns=isbn_variants(metadata.get("isbn")),
+        asins=frozenset({asin} if asin else ()),
+    )
 
 
 def calibre_fingerprint():

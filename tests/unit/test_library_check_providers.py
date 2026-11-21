@@ -51,6 +51,103 @@ def test_personal_entries_index_identifiers_and_media_type(media_session):
     assert entries[0].external_ids == frozenset({("openlibrary", "OL123W")})
 
 
+class FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+@pytest.mark.unit
+def test_audiobookshelf_entries_are_indexed(monkeypatch):
+    monkeypatch.setenv("AUDIOBOOKSHELF_CHECK_ENABLED", "true")
+    monkeypatch.setenv("AUDIOBOOKSHELF_URL", "http://abs.example")
+    monkeypatch.setenv("AUDIOBOOKSHELF_TOKEN", "token")
+    monkeypatch.setenv("AUDIOBOOKSHELF_LIBRARY_IDS", "")
+
+    def fake_get(url, **_kwargs):
+        if url.endswith("/api/libraries"):
+            return FakeResponse({"libraries": [{"id": "lib1", "mediaType": "book"}]})
+        return FakeResponse({
+            "results": [{
+                "media": {
+                    "metadata": {
+                        "title": "Dune",
+                        "authorName": "Frank Herbert",
+                        "isbn": "9780441172719",
+                        "asin": "B000TEST",
+                    }
+                }
+            }],
+            "total": 1,
+        })
+
+    monkeypatch.setattr(providers.requests, "get", fake_get)
+
+    entries = providers.audiobookshelf_entries()
+
+    assert len(entries) == 1
+    assert entries[0].kind == "audiobook"
+    assert entries[0].author_tokens == frozenset({"herbert"})
+    assert entries[0].isbns == isbn_variants("9780441172719")
+    assert entries[0].asins == frozenset({"B000TEST"})
+
+
+@pytest.mark.unit
+def test_audiobookshelf_entries_filters_by_library_ids(monkeypatch):
+    monkeypatch.setenv("AUDIOBOOKSHELF_CHECK_ENABLED", "true")
+    monkeypatch.setenv("AUDIOBOOKSHELF_URL", "http://abs.example")
+    monkeypatch.setenv("AUDIOBOOKSHELF_TOKEN", "token")
+    monkeypatch.setenv("AUDIOBOOKSHELF_LIBRARY_IDS", "lib2")
+
+    calls = []
+
+    def fake_get(url, **_kwargs):
+        calls.append(url)
+        if url.endswith("/api/libraries"):
+            return FakeResponse({
+                "libraries": [
+                    {"id": "lib1", "mediaType": "book"},
+                    {"id": "lib2", "mediaType": "book"},
+                ]
+            })
+        return FakeResponse({
+            "results": [{
+                "media": {
+                    "metadata": {
+                        "title": "Children of Dune",
+                        "authorName": "Frank Herbert",
+                    }
+                }
+            }],
+            "total": 1,
+        })
+
+    monkeypatch.setattr(providers.requests, "get", fake_get)
+
+    entries = providers.audiobookshelf_entries()
+
+    assert len(entries) == 1
+    assert "children" in entries[0].tokens
+    # Ensure lib1 was never queried
+    assert not any("libraries/lib1" in url for url in calls)
+    assert any("libraries/lib2" in url for url in calls)
+
+
+@pytest.mark.unit
+def test_audiobookshelf_check_is_disabled_without_explicit_opt_in(monkeypatch):
+    monkeypatch.setenv("AUDIOBOOKSHELF_URL", "http://abs.example")
+    monkeypatch.setenv("AUDIOBOOKSHELF_TOKEN", "token")
+    monkeypatch.delenv("AUDIOBOOKSHELF_CHECK_ENABLED", raising=False)
+
+    assert not providers.audiobookshelf_enabled()
+    assert providers.audiobookshelf_entries() == []
+
+
 @pytest.mark.unit
 def test_movie_entries_include_tmdb_and_year(media_session):
     media_session.add(

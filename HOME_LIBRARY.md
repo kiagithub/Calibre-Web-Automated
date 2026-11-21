@@ -43,7 +43,7 @@ Enabled providers run side by side. The search responds shortly after the first 
 
 Every result shows a small cover thumbnail beside its details. Thumbnails load lazily through a bounded server-side route, use the same Advocate/local-address policy and image checks as saved covers, are downscaled to thumbnail size, and are cached in memory. Applying metadata still records the provider's full cover URL; the thumbnail is only a preview.
 
-Results already in the library carry an **In library** badge naming the source (Calibre or Personal), and a **Hide owned** toggle filters them out. Providers are deduplicated by provider ID, ISBN-10/13, or normalized title plus author, and Open Library is included as a free provider.
+Results already in the library carry an **In library** badge naming the source (Calibre, Personal, or Audiobook), and a **Hide owned** toggle filters them out. Providers are deduplicated by provider ID, ISBN-10/13, or normalized title plus author, and Open Library is included as a free provider.
 
 Movie and personal-book metadata search share the fetch, status, error, and focus lifecycle in `cps/static/js/metadata_search.js`; each keeps its own request format and result rendering.
 
@@ -68,6 +68,7 @@ Records and ratings are shared across library users, matching the movie collecti
 - Read-only endpoints: `/api/media/books`, `/api/media/books/<id>`, `/api/media/movies`, `/api/media/movies/<id>`, `/api/media/search`, and `/api/media/stats`.
 - Keys are stored hashed, can be revoked, and never expose passwords, file paths, or provider tokens.
 - Optional companion-library links appear in the profile menu when `AUDIOBOOKSHELF_URL`, `PLEX_URL`, `JELLYFIN_URL`, or `GRIMMORY_URL` is set. Invalid or non-HTTP(S) URLs are ignored.
+- When `AUDIOBOOKSHELF_CHECK_ENABLED=true` is set with `AUDIOBOOKSHELF_URL` and `AUDIOBOOKSHELF_TOKEN`, metadata search checks Audiobookshelf libraries for owned audiobooks, with optional comma-separated `AUDIOBOOKSHELF_LIBRARY_IDS` filtering.
 
 ### Movies and shared media safety
 
@@ -321,14 +322,14 @@ Known pre-existing failures in the current environment:
 - `tests/unit/test_oauth_session.py` has three stale tests that call removed `*_logged_in` functions.
 - `tests/unit/test_ingest_watchers.py::test_ingest_service_shell_script` is environment-specific.
 
-The suite is order-independent and currently reports 496 passed, 18 skipped, 4 failed (the failures above).
+The suite is order-independent and currently reports 499 passed, 18 skipped, 4 failed (the failures above).
 
 A full browser check should exercise Home, Books, Movies, add/edit/delete, metadata selection, filters, collapsed navigation, keyboard focus, and desktop/mobile overflow against an isolated Docker config/library.
 
 ## Current status
 
 - The Home Library features above are implemented on `feature/physical-movies` and pushed to `origin`.
-- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, and Phase 3 Hardcover shelf sync, notification preferences, per-user request policies, and companion-library links.
+- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync, notification preferences, per-user request policies, and companion-library links, and Phase 4 optional Audiobookshelf ownership provider.
 
 ## Optional follow-ups
 
@@ -336,7 +337,6 @@ A full browser check should exercise Home, Books, Movies, add/edit/delete, metad
 - Run the full browser check described under Development checks against an isolated Docker config/library.
 - Exercise keyset Previous/Next against a test library with more than 24 books; cursor behavior and link generation are covered by unit tests, but a multi-page live check remains.
 - Repair the pre-existing OAuth and ingest-shell test failures listed under Development checks.
-- Add the optional Audiobookshelf ownership provider (Phase 4).
 - See `SHELFMARK_PLAN.md` for the proposed Shelfmark-inspired ownership badges, Open Library provider, audiobook catalog support, wishlist/requests, stats, and API work.
 
 ## Deliberately deferred clean-cut improvements

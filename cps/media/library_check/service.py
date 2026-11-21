@@ -77,6 +77,10 @@ def book_entries():
     entries = entries + _cached(
         "personal", providers.personal_fingerprint(), providers.personal_entries
     )
+    if providers.audiobookshelf_enabled():
+        entries = entries + _cached(
+            "audiobookshelf", None, providers.audiobookshelf_entries
+        )
     return entries
 
 
