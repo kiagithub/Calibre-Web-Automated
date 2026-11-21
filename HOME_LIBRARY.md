@@ -93,12 +93,12 @@ Records and ratings are shared across library users, matching the movie collecti
 
 ### Start
 
-Clone this repository and check out the physical-movies branch:
+Clone this repository and check out the `shelfmark` branch (or `feature/physical-movies`):
 
 ```bash
 git clone https://github.com/kiagithub/Calibre-Web-Automated.git
 cd Calibre-Web-Automated
-git checkout feature/physical-movies
+git checkout shelfmark
 ```
 
 Create the local environment file, replace placeholders with credentials only if desired, and build from this source checkout:
@@ -125,7 +125,7 @@ docker compose -f compose.home-library.yml logs -f home-library
 docker compose -f compose.home-library.yml down
 
 # Update this branch and rebuild
-git pull origin feature/physical-movies
+git pull origin shelfmark
 docker compose --env-file .env -f compose.home-library.yml up -d --build
 ```
 
@@ -329,12 +329,12 @@ A full browser check should exercise Home, Books, Movies, add/edit/delete, metad
 
 ## Current status
 
-- The Home Library features above are implemented on `feature/physical-movies` and pushed to `origin`.
+- The Home Library features above are implemented on `shelfmark` (and merged into `feature/physical-movies`) and pushed to `origin`.
 - Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync, notification preferences, per-user request policies, and companion-library links, and Phase 4 optional Audiobookshelf ownership provider and per-user catalog view defaults.
 
 ## Optional follow-ups
 
-- Open a pull request from `feature/physical-movies`.
+- Open a pull request from `shelfmark` / `feature/physical-movies`.
 - Run the full browser check described under Development checks against an isolated Docker config/library.
 - Exercise keyset Previous/Next against a test library with more than 24 books; cursor behavior and link generation are covered by unit tests, but a multi-page live check remains.
 - Repair the pre-existing OAuth and ingest-shell test failures listed under Development checks.
