@@ -22,8 +22,15 @@ STATUS_IDS = {
 }
 SHELF_QUERY = (
     "query ShelfBooks($status_id: Int!) { "
-    "me { user_books(where: {status_id: {_eq: $status_id}}) { book { id title } } } "
-    "}"
+    "me { user_books(where: {status_id: {_eq: $status_id}}) { "
+    "book { id title contributions { author { name } } } "
+    "} } }"
+)
+SHELF_QUERY_SIMPLE = (
+    "query ShelfBooks($status_id: Int!) { "
+    "me { user_books(where: {status_id: {_eq: $status_id}}) { "
+    "book { id title } "
+    "} } }"
 )
 
 
@@ -35,19 +42,72 @@ def _token(user=None):
     )
 
 
+def _extract_authors(book):
+    authors = []
+    contributions = book.get("contributions")
+    if isinstance(contributions, list):
+        for contrib in contributions:
+            if isinstance(contrib, dict):
+                author = contrib.get("author")
+                if isinstance(author, dict) and author.get("name"):
+                    name = str(author["name"]).strip()
+                    if name and name not in authors:
+                        authors.append(name)
+                elif contrib.get("name"):
+                    name = str(contrib["name"]).strip()
+                    if name and name not in authors:
+                        authors.append(name)
+    if not authors:
+        cached = book.get("cached_contributors")
+        if isinstance(cached, list):
+            for item in cached:
+                if isinstance(item, dict):
+                    author = item.get("author")
+                    if isinstance(author, dict) and author.get("name"):
+                        name = str(author["name"]).strip()
+                        if name and name not in authors:
+                            authors.append(name)
+                    elif item.get("name"):
+                        name = str(item["name"]).strip()
+                        if name and name not in authors:
+                            authors.append(name)
+                elif isinstance(item, str):
+                    name = item.strip()
+                    if name and name not in authors:
+                        authors.append(name)
+    return authors
+
+
 def fetch_shelf_books(token, status_id, timeout=30):
     headers = Hardcover.HEADERS.copy()
     headers["Authorization"] = "Bearer %s" % str(token).replace("Bearer ", "")
-    response = requests.post(
-        Hardcover.BASE_URL,
-        json={"query": SHELF_QUERY, "variables": {"status_id": int(status_id)}},
-        headers=headers,
-        timeout=timeout,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    if not isinstance(payload, dict) or payload.get("errors"):
-        raise ValueError("Hardcover returned an error while reading the shelf.")
+    payload = None
+    try:
+        response = requests.post(
+            Hardcover.BASE_URL,
+            json={"query": SHELF_QUERY, "variables": {"status_id": int(status_id)}},
+            headers=headers,
+            timeout=timeout,
+        )
+        if response.status_code == 200:
+            candidate = response.json()
+            if isinstance(candidate, dict) and not candidate.get("errors"):
+                payload = candidate
+    except Exception:
+        payload = None
+
+    if payload is None:
+        response = requests.post(
+            Hardcover.BASE_URL,
+            json={"query": SHELF_QUERY_SIMPLE, "variables": {"status_id": int(status_id)}},
+            headers=headers,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict) or payload.get("errors"):
+            raise ValueError("Hardcover returned an error while reading the shelf.")
+
     data = payload.get("data") or {}
     me = data.get("me") or []
     if isinstance(me, list):
@@ -64,8 +124,9 @@ def fetch_shelf_books(token, status_id, timeout=30):
         except (TypeError, ValueError):
             continue
         title = str(book.get("title") or "").strip()
+        authors = _extract_authors(book)
         if book_id and title:
-            books.append({"id": book_id, "title": title})
+            books.append({"id": book_id, "title": title, "authors": authors})
     return books
 
 
@@ -79,14 +140,14 @@ def _already_requested(provider, provider_id):
     )
 
 
-def _owned(book_id, title):
+def _owned(book_id, title, authors=None):
     try:
         from ..media.library_check import annotate_books
 
         record = {
             "id": str(book_id),
             "title": title,
-            "authors": [],
+            "authors": list(authors or []),
             "identifiers": {"hardcover": str(book_id)},
             "source": {"id": "hardcover"},
         }
@@ -105,13 +166,15 @@ def sync_user(user, shelf="want-to-read", content_type="book", limit=100):
     created = 0
     skipped = 0
     for book in books:
-        if _already_requested("hardcover", book["id"]) or _owned(book["id"], book["title"]):
+        authors = book.get("authors") or []
+        if _already_requested("hardcover", book["id"]) or _owned(book["id"], book["title"], authors):
             skipped += 1
             continue
         entry, was_created = service.create_request(
             user.id,
             content_type,
             book["title"],
+            authors=authors,
             metadata_provider="hardcover",
             metadata_id=str(book["id"]),
             identifiers={"hardcover": str(book["id"])},

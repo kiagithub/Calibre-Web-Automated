@@ -59,7 +59,7 @@ Records and ratings are shared across library users, matching the movie collecti
 - Each user can have up to 20 open requests by default. Duplicate open requests for the same title are collapsed instead of creating a second row.
 - Email notifications are sent when mail is configured: new requests to admins, and approval/rejection/fulfilment decisions to the requester. Users can opt out from **Notifications** in the profile menu.
 - **Request policies** lets admins/editors set a per-user open-request limit and disable requests for an individual account.
-- Admins can import a Hardcover shelf (**Want to read**, **Currently reading**, or **Read**) into the wishlist with **Sync now**. The importer skips books already owned or already requested. Set `HARDCOVER_SYNC_ENABLED=true` to run it on an interval instead.
+- Admins can import a Hardcover shelf (**Want to read**, **Currently reading**, or **Read**) into the wishlist with **Sync now**. The importer fetches book titles and contributors, skips books already owned or already requested, and creates enriched requests. Set `HARDCOVER_SYNC_ENABLED=true` to run it on an interval instead.
 
 ### Collection stats and API
 
@@ -323,14 +323,14 @@ Known pre-existing failures in the current environment:
 - `tests/unit/test_oauth_session.py` has three stale tests that call removed `*_logged_in` functions.
 - `tests/unit/test_ingest_watchers.py::test_ingest_service_shell_script` is environment-specific.
 
-The suite is order-independent and currently reports 507 passed, 18 skipped, 4 failed (the failures above).
+The suite is order-independent and currently reports 508 passed, 18 skipped, 4 failed (the failures above).
 
 A full browser check should exercise Home, Books, Movies, add/edit/delete, metadata selection, filters, collapsed navigation, keyboard focus, and desktop/mobile overflow against an isolated Docker config/library.
 
 ## Current status
 
 - The Home Library features above are implemented on `shelfmark` (and merged into `feature/physical-movies`) and pushed to `origin`.
-- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync, notification preferences, per-user request policies, and companion-library links, and Phase 4 optional Audiobookshelf ownership provider and per-user catalog view defaults.
+- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync with author enrichment, notification preferences, per-user request policies, and companion-library links, and Phase 4 optional Audiobookshelf ownership provider and per-user catalog view defaults.
 
 ## Optional follow-ups
 

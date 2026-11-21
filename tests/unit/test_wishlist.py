@@ -221,7 +221,7 @@ class TestWishlist:
         session.commit()
         monkeypatch.setattr(
             hardcover_sync, "fetch_shelf_books",
-            lambda token, status_id: [{"id": 42, "title": "Dune"}],
+            lambda token, status_id: [{"id": 42, "title": "Dune", "authors": ["Frank Herbert"]}],
         )
         monkeypatch.setattr(hardcover_sync, "_owned", lambda *args: False)
 
@@ -233,6 +233,87 @@ class TestWishlist:
         entry = session.query(MediaRequest).one()
         assert entry.metadata_provider == "hardcover"
         assert entry.metadata_id == "42"
+        assert entry.authors == ["Frank Herbert"]
+
+    def test_fetch_shelf_books_parses_contributions_and_falls_back(self, monkeypatch):
+        calls = []
+
+        class FakeResponse:
+            def __init__(self, data, status_code=200):
+                self._data = data
+                self.status_code = status_code
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return self._data
+
+        def fake_post(url, json=None, **kwargs):
+            query = (json or {}).get("query", "")
+            calls.append(query)
+            if "contributions" in query:
+                return FakeResponse({
+                    "data": {
+                        "me": [{
+                            "user_books": [{
+                                "book": {
+                                    "id": 99,
+                                    "title": "Hyperion",
+                                    "contributions": [{"author": {"name": "Dan Simmons"}}],
+                                }
+                            }]
+                        }]
+                    }
+                })
+            return FakeResponse({
+                "data": {
+                    "me": [{
+                        "user_books": [{
+                            "book": {
+                                "id": 100,
+                                "title": "Foundation",
+                            }
+                        }]
+                    }]
+                }
+            })
+
+        monkeypatch.setattr(hardcover_sync.requests, "post", fake_post)
+
+        books = hardcover_sync.fetch_shelf_books("fake_token", 1)
+        assert len(books) == 1
+        assert books[0]["title"] == "Hyperion"
+        assert books[0]["authors"] == ["Dan Simmons"]
+
+        # Now test fallback when contributions query fails
+        calls.clear()
+
+        def fake_post_with_fallback(url, json=None, **kwargs):
+            query = (json or {}).get("query", "")
+            calls.append(query)
+            if "contributions" in query:
+                # Return GraphQL error simulating schema incompatibility
+                return FakeResponse({"errors": [{"message": "Cannot query field 'contributions'"}]})
+            return FakeResponse({
+                "data": {
+                    "me": [{
+                        "user_books": [{
+                            "book": {
+                                "id": 101,
+                                "title": "Solaris",
+                            }
+                        }]
+                    }]
+                }
+            })
+
+        monkeypatch.setattr(hardcover_sync.requests, "post", fake_post_with_fallback)
+        fallback_books = hardcover_sync.fetch_shelf_books("fake_token", 1)
+        assert len(fallback_books) == 1
+        assert fallback_books[0]["title"] == "Solaris"
+        assert fallback_books[0]["authors"] == []
+        assert len(calls) == 2  # Attempted SHELF_QUERY, then fell back to SHELF_QUERY_SIMPLE
 
     def test_library_links_are_validated(self, monkeypatch):
         monkeypatch.setenv("PLEX_URL", "https://plex.example")
