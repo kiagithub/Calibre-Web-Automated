@@ -87,6 +87,8 @@ def _movie_json(movie):
         "id": movie.id,
         "title": movie.title,
         "original_title": movie.original_title,
+        "tagline": movie.tagline,
+        "collection_name": movie.collection_name,
         "year": movie.year,
         "release_date": movie.release_date,
         "runtime": movie.runtime,
@@ -96,6 +98,8 @@ def _movie_json(movie):
         "content_rating": movie.content_rating,
         "tmdb_id": movie.tmdb_id,
         "imdb_id": movie.imdb_id,
+        "vote_count": movie.vote_count,
+        "trailer_url": movie.trailer_url,
         "media_format": movie.media_format,
         "location": movie.location,
         "rating": movie.personal_rating,
@@ -104,6 +108,11 @@ def _movie_json(movie):
             url_for("movies.poster", movie_id=movie.id)
             if movie.poster_filename
             else url_for("static", filename="generic_cover.svg")
+        ),
+        "backdrop_url": (
+            url_for("movies.backdrop", movie_id=movie.id)
+            if movie.backdrop_filename
+            else ""
         ),
         "detail_url": url_for("movies.detail", movie_id=movie.id),
         "created_at": _iso(movie.created_at),

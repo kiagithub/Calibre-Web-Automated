@@ -74,11 +74,11 @@ Records and ratings are shared across library users, matching the movie collecti
 
 - TMDB title/year search, metadata import, and refresh retain the existing movie workflows.
 - TMDB search results show an **In library · Movies** badge when the movie is already in the collection, with a **Hide owned** toggle.
+- Metadata imports and refreshes extract tagline, franchise/collection name, TMDB vote count, YouTube trailer links, and backdrops alongside director, cast, genres, content rating, and runtime.
 - Movie lists sorted by "added" use an indexed `movie.created_at`; startup creates the index idempotently for existing `app.db` files as well as new ones.
 - DVD, Blu-ray, 4K UHD, VHS, LaserDisc, Digital, Other, and condition choices are validated server-side.
-- Movie and book artwork share bounded image validation, local atomic storage, safe response handling, and upload/download limits.
-- New artwork is staged before the database commit; replaced artwork is removed only after a successful commit. Failed saves roll back and discard newly staged files.
-- TMDB keeps its HTTPS image-host allowlist. Other provider covers use CWA's Advocate/local-address policy, reject redirects, enforce declared and streamed size limits, close responses, and validate image signatures.
+- Movie and book artwork share bounded image validation, local atomic storage, safe response handling, and upload/download limits. Posters and backdrops are staged before database commits; uncommitted files are cleaned up on error.
+- TMDB keeps its HTTPS image-host allowlist for posters and backdrops. Other provider covers use CWA's Advocate/local-address policy, reject redirects, enforce declared and streamed size limits, close responses, and validate image signatures.
 - Metadata-search thumbnails accept only HTTP(S) image URLs on standard ports, require edit permission, reuse the same bounded downloader, fall back to the local generic cover on any failure, and are capped at 256 cached images of at most 256 KiB each.
 - Movie poster downloads occur before the import write transaction, avoiding network waits while holding a SQLite write transaction.
 - Hardcover authorization headers are copied per request rather than mutated on a shared class, preventing concurrent users from overwriting one another's request credentials.
@@ -139,6 +139,7 @@ For another device on the same network, open `http://YOUR-COMPUTER-LAN-IP:8083`,
 | --- | --- |
 | `data/config/app.db` | Users, settings, and the `movie`, `external_book`, and `external_book_tag` tables |
 | `data/config/movie_covers/` | Movie posters referenced by `movie.poster_filename` |
+| `data/config/movie_backdrops/` | Movie backdrops referenced by `movie.backdrop_filename` |
 | `data/config/external_book_covers/` | Personal-book covers referenced by `external_book.cover_filename` |
 | `data/config/cwa.db` | CWA settings, including enabled metadata providers |
 | `data/config/` | All users, sessions, settings, and authentication data |
@@ -147,7 +148,7 @@ For another device on the same network, open `http://YOUR-COMPUTER-LAN-IP:8083`,
 
 Inside the container, the config directory is `/config`, the Calibre library is `/calibre-library`, and the ingest folder is `/cwa-book-ingest`.
 
-Movies and personal books share `app.db`; they are not separate databases. Artwork is stored as files beside `app.db`, so the database and both cover directories must be kept together. Calibre file-backed books live in `data/calibre-library/metadata.db` plus the book files.
+Movies and personal books share `app.db`; they are not separate databases. Artwork is stored as files beside `app.db`, so the database and all artwork directories must be kept together. Calibre file-backed books live in `data/calibre-library/metadata.db` plus the book files.
 
 The movie and personal-book tables are created by the application at startup; Docker only seeds a base `app.db` on first run. Running CWA outside Docker with `CALIBRE_DBPATH` or `-p /path/to/app.db` creates the same schema.
 
@@ -167,6 +168,7 @@ docker compose -f compose.home-library.yml down
 tar -czf cwa-media-$(date +%F).tar.gz \
   data/config/app.db \
   data/config/movie_covers \
+  data/config/movie_backdrops \
   data/config/external_book_covers
 ```
 
@@ -214,7 +216,7 @@ There is no built-in export/import UI yet; import/export remains a separate feat
    SQL
    ```
 
-3. Copy `movie_covers/` and `external_book_covers/` beside the target `app.db`.
+3. Copy `movie_covers/`, `movie_backdrops/`, and `external_book_covers/` beside the target `app.db`.
 
 The target should be empty, or IDs can collide. `external_book_tag` references `external_book.id`, so books must be inserted before tags. Artwork filenames in the database must match the copied cover directories. Both databases should use the same or a compatible CWA schema version; otherwise migrate the source first and repeat the copy.
 
@@ -330,7 +332,7 @@ A full browser check should exercise Home, Books, Movies, add/edit/delete, metad
 ## Current status
 
 - The Home Library features above are implemented on `shelfmark` (and merged into `feature/physical-movies`) and pushed to `origin`.
-- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync with author enrichment, notification preferences, per-user request policies, and companion-library links, and Phase 4 optional Audiobookshelf ownership provider and per-user catalog view defaults.
+- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync with author enrichment, notification preferences, per-user request policies, and companion-library links, Phase 4 optional Audiobookshelf ownership provider and per-user catalog view defaults, and rich movie metadata expansion with TMDB taglines, franchise collections, trailer links, vote counts, and backdrop banner artwork.
 
 ## Optional follow-ups
 

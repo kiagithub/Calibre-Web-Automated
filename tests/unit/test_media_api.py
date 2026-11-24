@@ -67,6 +67,7 @@ def media_api_app(monkeypatch):
         ("external_books.cover", "/stub/external-books/<int:book_id>/cover"),
         ("movies.detail", "/stub/movies/<int:movie_id>"),
         ("movies.poster", "/stub/movies/<int:movie_id>/poster"),
+        ("movies.backdrop", "/stub/movies/<int:movie_id>/backdrop"),
     ):
         app.add_url_rule(rule, endpoint=endpoint, view_func=lambda **kwargs: "")
     app.config["TEST_USER"] = FakeUser()
@@ -94,6 +95,9 @@ def seed(session):
     movie = Movie(
         title="Arrival", media_format="Blu-ray", release_date="2016-11-11",
         tmdb_id=329865, created_at=datetime.now(timezone.utc),
+        tagline="Why are they here?", collection_name="SciFi Classics",
+        vote_count=16420, trailer_url="https://www.youtube.com/watch?v=trailer456",
+        backdrop_filename="backdrop.jpg",
     )
     request = MediaRequest(user_id=1, content_type="book", title="Hyperion")
     request.authors = ["Dan Simmons"]
@@ -138,7 +142,13 @@ class TestMediaApi:
         assert books["total"] == 2
         assert {book["title"] for book in books["books"]} == {"Dune", "Dune Messiah"}
         assert movies["total"] == 1
-        assert movies["movies"][0]["tmdb_id"] == 329865
+        movie_item = movies["movies"][0]
+        assert movie_item["tmdb_id"] == 329865
+        assert movie_item["tagline"] == "Why are they here?"
+        assert movie_item["collection_name"] == "SciFi Classics"
+        assert movie_item["vote_count"] == 16420
+        assert movie_item["trailer_url"] == "https://www.youtube.com/watch?v=trailer456"
+        assert movie_item["backdrop_url"].endswith("/backdrop")
 
     def test_filters_and_search(self, media_api_app):
         app, session = media_api_app
