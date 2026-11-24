@@ -8,9 +8,11 @@
 import concurrent.futures
 import importlib
 import inspect
-import json
 import os
 import sys
+import threading
+import time
+from collections import OrderedDict
 
 from flask import Blueprint, request, url_for, make_response, jsonify, copy_current_request_context
 from .cw_login import current_user
@@ -20,12 +22,31 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from cps.services.Metadata import Metadata
 from . import constants, logger, ub, web_server
+from .metadata_merge import dedupe_records
 from .usermanagement import user_login_required
 
 
 meta = Blueprint("metadata", __name__)
 
 log = logger.create()
+
+# Metadata providers are independent network calls. Run them side by side and
+# stop waiting once the deadline passes so one slow provider cannot hold up the
+# whole result set. Complete result sets are cached briefly to make repeated
+# searches (and the automatic cover-thumbnail retries) instant.
+try:
+    METADATA_SEARCH_TIMEOUT = max(
+        0.5, float(os.environ.get("CWA_METADATA_SEARCH_TIMEOUT", "10"))
+    )
+except ValueError:
+    METADATA_SEARCH_TIMEOUT = 10.0
+METADATA_SEARCH_GRACE = 4.0
+METADATA_SEARCH_MAX_WORKERS = 16
+METADATA_SEARCH_CACHE_TTL = 300
+METADATA_SEARCH_CACHE_SIZE = 64
+
+_search_cache = OrderedDict()
+_search_cache_lock = threading.Lock()
 
 try:
     from dataclasses import asdict
@@ -68,6 +89,137 @@ def list_classes(provider_list):
 cl = list_classes(new_list)
 # Alphabetises the list of Metadata providers
 cl.sort(key=lambda x: x.__class__.__name__)
+
+
+def _enabled_providers(active, global_enabled):
+    """Return providers enabled for this user and globally, in stable order."""
+    return [
+        provider for provider in cl
+        if active.get(provider.__id__, True) and bool(global_enabled.get(provider.__id__, True))
+    ]
+
+
+def _cache_key(query, locale, providers, search_by=""):
+    """Scope cached results to the query, locale, user, provider set, and search target."""
+    try:
+        user_id = getattr(current_user, "id", None)
+    except Exception:
+        user_id = None
+    query_str = f"{search_by}:{query}" if search_by else str(query)
+    return (
+        " ".join(query_str.split()).casefold(),
+        str(locale),
+        user_id,
+        tuple(sorted(provider.__id__ for provider in providers)),
+    )
+
+
+def _cache_get(key, now=None):
+    now = time.monotonic() if now is None else now
+    with _search_cache_lock:
+        entry = _search_cache.get(key)
+        if entry is None:
+            return None
+        expires, data = entry
+        if expires <= now:
+            _search_cache.pop(key, None)
+            return None
+        _search_cache.move_to_end(key)
+        return list(data)
+
+
+def _cache_set(key, data, now=None):
+    now = time.monotonic() if now is None else now
+    with _search_cache_lock:
+        _search_cache[key] = (now + METADATA_SEARCH_CACHE_TTL, list(data))
+        _search_cache.move_to_end(key)
+        while len(_search_cache) > METADATA_SEARCH_CACHE_SIZE:
+            _search_cache.popitem(last=False)
+
+
+def _clear_search_cache():
+    """Test helper: forget every cached metadata result."""
+    with _search_cache_lock:
+        _search_cache.clear()
+
+
+def _search_providers(query, providers, static_cover, locale, deadline=None, search_by=""):
+    """Search providers concurrently and return (results, partial).
+
+    ``partial`` is true when providers were still running at the deadline or
+    after the grace window that follows the first completed provider. Running
+    calls are abandoned rather than blocking the response; they are bounded by
+    each provider's own request timeout.
+    """
+    if not providers:
+        return [], False
+    deadline = METADATA_SEARCH_TIMEOUT if deadline is None else deadline
+    grace = min(METADATA_SEARCH_GRACE, deadline)
+    started = time.monotonic()
+    deadline_at = started + deadline
+    first_done_at = None
+    results_by_order = {}
+    futures = {}
+    executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=max(1, min(len(providers), METADATA_SEARCH_MAX_WORKERS))
+    )
+    try:
+        for order, provider in enumerate(providers):
+            search = copy_current_request_context(provider.search)
+            try:
+                sig = inspect.signature(provider.search)
+            except (ValueError, TypeError):
+                sig = None
+            if sig and "search_by" in sig.parameters:
+                futures[executor.submit(search, query, static_cover, locale, search_by=search_by)] = (order, provider)
+            elif search_by == "title" and getattr(provider, "__id__", "") == "google":
+                futures[executor.submit(search, f"intitle:{query}", static_cover, locale)] = (order, provider)
+            elif search_by == "author" and getattr(provider, "__id__", "") == "google":
+                futures[executor.submit(search, f"inauthor:{query}", static_cover, locale)] = (order, provider)
+            elif search_by == "isbn" and getattr(provider, "__id__", "") == "google":
+                futures[executor.submit(search, f"isbn:{query}", static_cover, locale)] = (order, provider)
+            else:
+                futures[executor.submit(search, query, static_cover, locale)] = (order, provider)
+
+        remaining = set(futures)
+        while remaining:
+            now = time.monotonic()
+            # Once the first provider answers, give stragglers a short grace
+            # window instead of waiting for the slowest one up to the deadline.
+            wait_until = deadline_at
+            if first_done_at is not None:
+                wait_until = min(wait_until, first_done_at + grace)
+            if now >= wait_until:
+                break
+            done, remaining = concurrent.futures.wait(
+                remaining,
+                timeout=wait_until - now,
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            if not done:
+                break
+            if first_done_at is None:
+                first_done_at = time.monotonic()
+            for future in done:
+                order, provider = futures[future]
+                try:
+                    result = future.result()
+                    if result:
+                        results_by_order[order] = [asdict(record) for record in result if record]
+                except Exception as exc:
+                    log.warning(
+                        "Metadata provider %s failed: %s", provider.__class__.__name__, exc
+                    )
+        partial = bool(remaining)
+    finally:
+        for future in futures:
+            future.cancel()
+        executor.shutdown(wait=False, cancel_futures=True)
+
+    data = []
+    for order in sorted(results_by_order):
+        data.extend(results_by_order[order])
+    return data, partial
 
 
 # Helper to load global provider enablement map from CWA settings
@@ -153,29 +305,42 @@ def metadata_change_active_provider(prov_name):
 @meta.route("/metadata/search", methods=["POST"])
 @user_login_required
 def metadata_search():
-    query = request.form.to_dict().get("query")
-    data = list()
+    form = request.form.to_dict()
+    query = (form.get("query") or "").strip()[:300]
+    search_by = (form.get("search_by") or "").strip().lower()[:20]
+    if search_by not in ("title", "author", "isbn"):
+        search_by = ""
+    owned = (form.get("owned") or "").strip().lower()[:10]
+    check_owned = str(form.get("check_owned", "")).lower() in ("1", "true", "on") or bool(owned)
+    if not query:
+        return make_response(jsonify([]))
     active = current_user.view_settings.get("metadata", {})
     locale = get_locale()
     global_enabled = _get_global_provider_enabled_map()
-    if query:
+    providers = _enabled_providers(active, global_enabled)
+    key = _cache_key(query, locale, providers, search_by=search_by)
+    cached = _cache_get(key)
+    partial = False
+    if cached is not None:
+        data = cached
+    else:
         static_cover = url_for("static", filename="generic_cover.svg")
-        # ret = cl[0].search(query, static_cover, locale)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            meta = {
-                executor.submit(copy_current_request_context(c.search), query, static_cover, locale): c
-                for c in cl
-                if active.get(c.__id__, True) and bool(global_enabled.get(c.__id__, True))
-            }
-            for future in concurrent.futures.as_completed(meta):
-                try:
-                    result = future.result()
-                except Exception as exc:
-                    provider = meta.get(future)
-                    provider_name = provider.__class__.__name__ if provider else "Unknown"
-                    log.warning("Metadata provider %s failed: %s", provider_name, exc)
-                    continue
-                if not result:
-                    continue
-                data.extend([asdict(x) for x in result if x])
-    return  make_response(jsonify(data))
+        data, partial = _search_providers(query, providers, static_cover, locale, search_by=search_by)
+        data = dedupe_records(data)
+        if not partial:
+            _cache_set(key, data)
+
+    if check_owned and data:
+        from .media.library_check import annotate_books
+
+        data = annotate_books([dict(item) for item in data])
+
+    if owned == "hide":
+        data = [item for item in data if not item.get("owned")]
+    elif owned == "only":
+        data = [item for item in data if item.get("owned")]
+
+    response = make_response(jsonify(data))
+    if partial:
+        response.headers["X-Metadata-Partial"] = "true"
+    return response

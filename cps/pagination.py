@@ -10,6 +10,8 @@ from math import ceil
 
 # simple pagination for the feed
 class Pagination(object):
+    keyset = False
+
     def __init__(self, page, per_page, total_count):
         self.page = int(page)
         self.per_page = int(per_page)
@@ -78,3 +80,21 @@ class Pagination(object):
         # Always show last page if more than one page
         if pages > 1:
             yield pages
+
+
+class KeysetPagination:
+    """Previous/next-only pagination for cursor-based result sets."""
+
+    keyset = True
+
+    def __init__(self, prev_url=None, next_url=None):
+        self.prev_url = prev_url
+        self.next_url = next_url
+
+    @property
+    def has_prev(self):
+        return bool(self.prev_url)
+
+    @property
+    def has_next(self):
+        return bool(self.next_url)

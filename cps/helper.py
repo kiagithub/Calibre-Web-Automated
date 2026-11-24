@@ -33,6 +33,13 @@ from werkzeug.security import generate_password_hash
 from markupsafe import escape
 from urllib.parse import quote
 
+from .media.images import (
+    ImageDownloadError,
+    ImageTooLargeError,
+    LocalAddressError,
+    download_image,
+)
+
 try:
     from . import cw_advocate
     from .cw_advocate.exceptions import UnacceptableAddressException
@@ -1059,52 +1066,38 @@ def _get_cover_download_limit():
 
 def save_cover_from_url(url, book_path):
     max_cover_bytes, max_cover_mb = _get_cover_download_limit()
-    img = None
     download_start = time.monotonic()
+    if cli_param.allow_localhost:
+        session = requests
+    elif use_advocate:
+        session = cw_advocate
+    else:
+        log.error("python module advocate is not installed but is needed")
+        return False, _("Python module 'advocate' is not installed but is needed for cover uploads")
     try:
-        if cli_param.allow_localhost:
-            img = requests.get(url, timeout=(10, 30), allow_redirects=False, stream=True)  # ToDo: Error Handling
-        elif use_advocate:
-            img = cw_advocate.get(url, timeout=(10, 30), allow_redirects=False, stream=True)      # ToDo: Error Handling
-        else:
-            log.error("python module advocate is not installed but is needed")
-            return False, _("Python module 'advocate' is not installed but is needed for cover uploads")
-        img.raise_for_status()
-
-        content_length = img.headers.get("content-length")
-        if content_length and content_length.isdigit() and int(content_length) > max_cover_bytes:
-            return False, _("Cover image exceeds maximum size of %(size)s MB", size=max_cover_mb)
-
-        content = bytearray()
-        for chunk in img.iter_content(chunk_size=8192):
-            if not chunk:
-                continue
-            content.extend(chunk)
-            if len(content) > max_cover_bytes:
-                return False, _("Cover image exceeds maximum size of %(size)s MB", size=max_cover_mb)
-        img._content = bytes(content)
+        downloaded = download_image(
+            url, max_bytes=max_cover_bytes, session=session, timeout=(10, 30),
+            validate_image=False,
+        )
+        # Preserve save_cover's content-type handling and Calibre storage behavior.
+        img = requests.Response()
+        img.status_code = 200
+        img._content = downloaded.data
+        if downloaded.content_type:
+            img.headers["content-type"] = downloaded.content_type
         log.debug("Cover download ok: %s bytes in %.3fs", len(img._content), time.monotonic() - download_start)
         return save_cover(img, book_path)
-    except (socket.gaierror,
-            requests.exceptions.HTTPError,
-            requests.exceptions.InvalidURL,
-            requests.exceptions.ConnectionError,
-            requests.exceptions.Timeout) as ex:
-        # "Invalid host" can be the result of a redirect response
+    except ImageTooLargeError:
+        return False, _("Cover image exceeds maximum size of %(size)s MB", size=max_cover_mb)
+    except LocalAddressError:
+        log.error("Localhost or local network was accessed for cover upload")
+        return False, _("You are not allowed to access localhost or the local network for cover uploads")
+    except ImageDownloadError as ex:
         log.error(u'Cover Download Error %s', ex)
         return False, _("Error Downloading Cover")
     except MissingDelegateError as ex:
         log.info(u'File Format Error %s', ex)
         return False, _("Cover Format Error")
-    except UnacceptableAddressException as e:
-        log.error("Localhost or local network was accessed for cover upload")
-        return False, _("You are not allowed to access localhost or the local network for cover uploads")
-    finally:
-        try:
-            if img is not None:
-                img.close()
-        except Exception:
-            pass
 
 
 def save_cover_from_filestorage(filepath, saved_filename, img):

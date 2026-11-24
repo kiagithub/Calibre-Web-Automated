@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block body %}
+<main class="media-page" aria-labelledby="media-stats-heading">
+  <header class="media-header">
+    <div>
+      <span class="media-eyebrow">{{ _('Collection overview') }}</span>
+      <h1 id="media-stats-heading">{{ _('Collection stats') }}</h1>
+      <p>{{ _('Counts for your personal books, movies, and wishlist requests.') }}</p>
+    </div>
+    <a class="btn btn-default" href="{{ url_for('catalog.index') }}">{{ _('Browse books') }}</a>
+  </header>
+
+  <section class="media-shelf" aria-labelledby="stats-books-heading">
+    <div class="media-shelf-heading"><div><h2 id="stats-books-heading">{{ _('Books') }}</h2><p>{{ stats.books.total }} {{ _('items') }}</p></div></div>
+    <div class="media-grid">
+      <div class="media-panel"><h3>{{ _('Added in the last 7 days') }}</h3><p>{{ stats.books.added_7d }}</p></div>
+      <div class="media-panel"><h3>{{ _('Added in the last 30 days') }}</h3><p>{{ stats.books.added_30d }}</p></div>
+      {% for media_type, count in stats.books.by_media_type.items() %}
+      <div class="media-panel"><h3>{{ media_type|title }}</h3><p>{{ count }}</p></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="media-shelf" aria-labelledby="stats-movies-heading">
+    <div class="media-shelf-heading"><div><h2 id="stats-movies-heading">{{ _('Movies') }}</h2><p>{{ stats.movies.total }} {{ _('items') }}</p></div></div>
+    <div class="media-grid">
+      <div class="media-panel"><h3>{{ _('Added in the last 7 days') }}</h3><p>{{ stats.movies.added_7d }}</p></div>
+      <div class="media-panel"><h3>{{ _('Added in the last 30 days') }}</h3><p>{{ stats.movies.added_30d }}</p></div>
+      {% for media_format, count in stats.movies.by_format.items() %}
+      <div class="media-panel"><h3>{{ media_format }}</h3><p>{{ count }}</p></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="media-shelf" aria-labelledby="stats-requests-heading">
+    <div class="media-shelf-heading"><div><h2 id="stats-requests-heading">{{ _('Wishlist') }}</h2><p>{{ stats.requests.total }} {{ _('requests') }}</p></div></div>
+    <div class="media-grid">
+      {% for status, count in stats.requests.by_status.items() %}
+      <div class="media-panel"><h3>{{ status|title }}</h3><p>{{ count }}</p></div>
+      {% endfor %}
+      {% for content_type, count in stats.requests.by_content_type.items() %}
+      <div class="media-panel"><h3>{{ content_type|title }}</h3><p>{{ count }}</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

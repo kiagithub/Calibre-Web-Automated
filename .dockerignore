@@ -18,6 +18,12 @@ changelogs
 cwa-wiki
 wiki_images
 .devcontainer
+.venv
+.env
+.env.*
+data/
+compose.home-library.yml
+HOME_LIBRARY.md
 
 # Test infrastructure (not needed in production image)
 tests/

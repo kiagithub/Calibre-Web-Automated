@@ -1,0 +1,124 @@
+{% extends "layout.html" %}
+{% block body %}
+<main class="media-page wishlist-page" aria-labelledby="wishlist-heading">
+  <header class="media-header">
+    <div>
+      <span class="media-eyebrow">{{ _('Acquisition requests') }}</span>
+      <h1 id="wishlist-heading">{{ _('Wishlist') }}</h1>
+      <p>{{ _('Request books, audiobooks, or movies for an admin to review.') }}</p>
+    </div>
+    <div class="media-header-actions">
+      <a class="btn btn-primary" href="{{ url_for('wishlist.new') }}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> {{ _('New request') }}</a>
+      {% if can_edit_media %}<a class="btn btn-default" href="{{ url_for('wishlist.policies') }}">{{ _('Request policies') }}</a>{% endif %}
+    </div>
+  </header>
+
+  <section class="media-toolbar" aria-label="{{ _('Filter wishlist') }}">
+    <form method="get" action="{{ url_for('wishlist.index') }}" class="media-filter-form">
+      <div class="form-group">
+        <label for="wishlist-status">{{ _('Status') }}</label>
+        <select class="form-control" id="wishlist-status" name="status">
+          <option value="">{{ _('All statuses') }}</option>
+          {% for value in statuses %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ value|title }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="wishlist-type">{{ _('Type') }}</label>
+        <select class="form-control" id="wishlist-type" name="content_type">
+          <option value="">{{ _('All types') }}</option>
+          {% for value in content_types %}<option value="{{ value }}"{% if content_type == value %} selected{% endif %}>{{ value|title }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">{{ _('Apply filters') }}</button>
+      {% if status or content_type %}<a class="btn btn-default" href="{{ url_for('wishlist.index') }}">{{ _('Clear filters') }}</a>{% endif %}
+    </form>
+    <p class="media-total">{{ total }} {{ _('request') if total == 1 else _('requests') }}</p>
+  </section>
+
+  {% if can_edit_media %}
+  <section class="media-panel media-form-section">
+    <div class="media-section-heading"><div><h2>{{ _('Import from Hardcover') }}</h2></div></div>
+    <p class="help-block">{{ _('Requires a Hardcover token on your account or HARDCOVER_TOKEN in the environment.') }}</p>
+    <form method="post" action="{{ url_for('wishlist.hardcover_sync') }}" class="media-form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label for="hardcover-shelf">{{ _('Shelf') }}</label>
+        <select class="form-control" id="hardcover-shelf" name="shelf">
+          <option value="want-to-read">{{ _('Want to read') }}</option>
+          <option value="currently-reading">{{ _('Currently reading') }}</option>
+          <option value="read">{{ _('Read') }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="hardcover-type">{{ _('Request as') }}</label>
+        <select class="form-control" id="hardcover-type" name="content_type">
+          <option value="book">{{ _('Book') }}</option>
+          <option value="audiobook">{{ _('Audiobook') }}</option>
+        </select>
+      </div>
+      <div class="form-group media-field-full">
+        <button class="btn btn-default" type="submit">{{ _('Sync now') }}</button>
+      </div>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if entries %}
+  <section class="wishlist-list" aria-label="{{ _('Wishlist requests') }}">
+    {% for entry in entries %}
+    <article class="wishlist-card">
+      <div class="wishlist-card-main">
+        <span class="wishlist-type">{{ entry.content_type|title }}</span>
+        <h2>{{ entry.title }}</h2>
+        {% if entry.authors %}<p class="wishlist-byline">{{ entry.authors|join(', ') }}</p>{% endif %}
+        {% if entry.director %}<p class="wishlist-byline">{{ entry.director }}</p>{% endif %}
+        <p class="wishlist-meta">
+          {{ entry.requester.name if entry.requester else _('Unknown user') }}
+          · {{ entry.created_at.strftime('%Y-%m-%d') if entry.created_at else '' }}
+          · <span class="wishlist-status wishlist-status-{{ entry.status }}">{{ entry.status|title }}</span>
+        </p>
+        {% if entry.note %}<p class="wishlist-note">{{ entry.note }}</p>{% endif %}
+        {% if entry.admin_note %}<p class="wishlist-admin-note">{{ _('Admin note') }}: {{ entry.admin_note }}</p>{% endif %}
+      </div>
+      <div class="wishlist-actions">
+        {% if can_edit_media and entry.is_open %}
+        <form method="post" action="{{ url_for('wishlist.fulfill', request_id=entry.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-primary" type="submit">{{ _('Fulfil') }}</button>
+        </form>
+        <form method="post" action="{{ url_for('wishlist.approve', request_id=entry.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="form-control" name="admin_note" maxlength="10000" placeholder="{{ _('Admin note') }}">
+          <button class="btn btn-default" type="submit">{{ _('Approve') }}</button>
+        </form>
+        <form method="post" action="{{ url_for('wishlist.reject', request_id=entry.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="form-control" name="admin_note" maxlength="10000" placeholder="{{ _('Reason') }}">
+          <button class="btn btn-danger" type="submit">{{ _('Reject') }}</button>
+        </form>
+        {% endif %}
+        {% if entry.is_open %}
+        <form method="post" action="{{ url_for('wishlist.cancel', request_id=entry.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-default" type="submit">{{ _('Cancel') }}</button>
+        </form>
+        {% endif %}
+        {% if can_edit_media and entry.status in ('rejected', 'fulfilled') %}
+        <form method="post" action="{{ url_for('wishlist.reopen', request_id=entry.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-default" type="submit">{{ _('Reopen') }}</button>
+        </form>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="media-empty-state">
+    <h2>{{ _('No requests found') }}</h2>
+    <p>{{ _('Request a book or movie and an admin can review it.') }}</p>
+    <a class="btn btn-primary" href="{{ url_for('wishlist.new') }}">{{ _('New request') }}</a>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

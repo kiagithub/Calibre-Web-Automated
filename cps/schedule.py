@@ -6,8 +6,9 @@
 # See CONTRIBUTORS for full list of authors.
 
 import datetime
+import os
 
-from . import config, constants
+from . import config, constants, logger
 from .services.background_scheduler import BackgroundScheduler, CronTrigger, IntervalTrigger, use_APScheduler, DateTrigger
 from .tasks.database import TaskReconnectDatabase, TaskCleanArchivedBooks
 from .tasks.clean import TaskClean
@@ -70,6 +71,7 @@ def register_scheduled_tasks(reconnect=True):
                            name="end scheduled task")
 
         _schedule_hardcover_auto_fetch(scheduler, timezone_info)
+        _schedule_hardcover_wishlist_sync(scheduler)
         _schedule_archived_book_cleanup(scheduler, timezone_info)
 
         # Kick-off tasks, if they should currently be running
@@ -191,6 +193,32 @@ def register_startup_tasks():
             scheduler.schedule_tasks_immediately(tasks=get_scheduled_tasks(False))
         else:
             scheduler.schedule_tasks_immediately(tasks=[[lambda: TaskClean(), 'delete temp', True]])
+
+
+def _schedule_hardcover_wishlist_sync(scheduler):
+    """Schedule the optional Hardcover shelf -> wishlist import."""
+    if os.getenv("HARDCOVER_SYNC_ENABLED", "false").strip().lower() not in (
+        "1", "true", "yes", "on",
+    ):
+        return
+    try:
+        hours = max(1, int(os.getenv("HARDCOVER_SYNC_INTERVAL_HOURS", "24")))
+    except (TypeError, ValueError):
+        hours = 24
+
+    def run_sync():
+        try:
+            from .wishlist.hardcover_sync import sync_all_users
+
+            sync_all_users()
+        except Exception as exc:
+            logger.create().warning("Scheduled Hardcover wishlist sync failed: %s", exc)
+
+    scheduler.schedule(
+        func=run_sync,
+        trigger=IntervalTrigger(hours=hours),
+        name="hardcover wishlist sync",
+    )
 
 
 def should_task_be_running(start, duration):

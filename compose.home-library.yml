@@ -1,0 +1,34 @@
+---
+services:
+  home-library:
+    build:
+      context: .
+    image: home-library:local
+    container_name: home-library
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-America/Los_Angeles}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:-}
+      TMDB_LANGUAGE: ${TMDB_LANGUAGE:-en-US}
+      NETWORK_SHARE_MODE: ${NETWORK_SHARE_MODE:-false}
+      CWA_METADATA_SEARCH_TIMEOUT: ${CWA_METADATA_SEARCH_TIMEOUT:-10}
+      AUDIOBOOKSHELF_URL: ${AUDIOBOOKSHELF_URL:-}
+      AUDIOBOOKSHELF_CHECK_ENABLED: ${AUDIOBOOKSHELF_CHECK_ENABLED:-false}
+      AUDIOBOOKSHELF_TOKEN: ${AUDIOBOOKSHELF_TOKEN:-}
+      AUDIOBOOKSHELF_LIBRARY_IDS: ${AUDIOBOOKSHELF_LIBRARY_IDS:-}
+      PLEX_URL: ${PLEX_URL:-}
+      JELLYFIN_URL: ${JELLYFIN_URL:-}
+      GRIMMORY_URL: ${GRIMMORY_URL:-}
+      HARDCOVER_SYNC_ENABLED: ${HARDCOVER_SYNC_ENABLED:-false}
+      HARDCOVER_SYNC_SHELF: ${HARDCOVER_SYNC_SHELF:-want-to-read}
+      HARDCOVER_SYNC_CONTENT_TYPE: ${HARDCOVER_SYNC_CONTENT_TYPE:-book}
+      HARDCOVER_SYNC_INTERVAL_HOURS: ${HARDCOVER_SYNC_INTERVAL_HOURS:-24}
+    volumes:
+      - ./data/config:/config
+      - ./data/ingest:/cwa-book-ingest
+      - ./data/calibre-library:/calibre-library
+    ports:
+      - "${LIBRARY_PORT:-8083}:8083"
+    restart: unless-stopped

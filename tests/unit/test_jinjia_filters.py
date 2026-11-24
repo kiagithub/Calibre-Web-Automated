@@ -7,11 +7,14 @@
 import pytest
 import sys
 import os
+from urllib.parse import parse_qs, urlparse
+
+from flask import Flask
 
 # Add the parent directory to the path so we can import cps modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from cps.jinjia import formatfloat
+from cps.jinjia import formatfloat, url_for_other_page
 
 
 class TestFormatFloatFilter:
@@ -79,6 +82,25 @@ class TestFormatFloatFilter:
         assert formatfloat(-1.5, 2) == '-1.5'
         assert formatfloat('-1.5', 2) == '-1.5'
         assert formatfloat(-1.0, 2) == '-1'
+
+
+class TestPaginationUrlFilter:
+    def test_query_page_is_replaced_and_filters_are_preserved(self):
+        app = Flask(__name__)
+        app.add_url_rule("/books/", endpoint="catalog.index", view_func=lambda: url_for_other_page(3))
+        result = app.test_client().get("/books/?page=1&q=Arrival&media_type=kindle&tag=Owned").get_data(as_text=True)
+        assert parse_qs(urlparse(result).query) == {
+            "q": ["Arrival"], "media_type": ["kindle"], "tag": ["Owned"], "page": ["3"]
+        }
+
+    def test_route_arguments_are_preserved(self):
+        app = Flask(__name__)
+        app.add_url_rule(
+            "/newest/<sort_param>/<book_id>/<int:page>", endpoint="web.books_list",
+            view_func=lambda **_kwargs: url_for_other_page(4),
+        )
+        result = app.test_client().get("/newest/stored/1/2?query=Arrival").get_data(as_text=True)
+        assert result == "/newest/stored/1/4?query=Arrival"
 
 
 if __name__ == '__main__':

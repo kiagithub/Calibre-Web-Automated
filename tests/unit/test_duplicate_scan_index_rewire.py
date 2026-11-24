@@ -547,6 +547,7 @@ def _load_duplicates_route_module(
         return kwargs
 
     _install_stub("cps.render_template", {"render_title_template": _render_title_template})
+    _install_stub("cps.internal_api", {"internal_only": lambda fn: fn})
     user = SimpleNamespace(
         id=7,
         name="tester",

@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+{% block body %}
+<main class="media-page" aria-labelledby="request-policies-heading">
+  <a class="media-back-link" href="{{ url_for('wishlist.index') }}"><span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span> {{ _('Back to wishlist') }}</a>
+  <header class="media-header media-form-header">
+    <div>
+      <span class="media-eyebrow">{{ _('Wishlist administration') }}</span>
+      <h1 id="request-policies-heading">{{ _('Request policies') }}</h1>
+      <p>{{ _('Control who can create requests and how many open requests each user may have.') }}</p>
+    </div>
+  </header>
+  <form method="post" action="{{ url_for('wishlist.policies') }}" class="media-panel media-form-section">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="wishlist-list">
+      {% for user in users %}
+      <article class="wishlist-card">
+        <div class="wishlist-card-main">
+          <h2>{{ user.name }}</h2>
+          <p class="wishlist-meta">{{ user.email or _('No email') }}</p>
+        </div>
+        <div class="wishlist-actions">
+          <label class="media-checkbox"><input type="checkbox" name="requests_allowed_{{ user.id }}"{% if requests_allowed(user.id) %} checked{% endif %}> {{ _('Allow requests') }}</label>
+          <label for="max-pending-{{ user.id }}">{{ _('Max open requests') }}</label>
+          <input class="form-control" id="max-pending-{{ user.id }}" name="max_pending_{{ user.id }}" type="number" min="1" max="100" value="{{ max_pending_for(user.id) }}">
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    <div class="media-form-actions">
+      <button class="btn btn-primary" type="submit">{{ _('Save policies') }}</button>
+    </div>
+  </form>
+</main>
+{% endblock %}

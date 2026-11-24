@@ -215,13 +215,13 @@ body.blur .container-fluid .book .meta .author {
         gap: 6px;
     }
 
-    /* Book grid: 3 columns */
+    /* Book grid: two readable columns with room for touch actions */
     body.blur .discover .row.display-flex {
         margin: 0 6px !important;
     }
 
     body.blur .discover .book:not(body) {
-        width: 33.3333% !important;
+        width: 50% !important;
         min-width: 0 !important;
         max-width: none !important;
         padding: 0 6px !important;

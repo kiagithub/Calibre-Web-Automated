@@ -45,6 +45,8 @@ from .usermanagement import login_required_if_no_ano
 from .kobo_sync_status import remove_synced_book
 from . import magic_shelf
 from .render_template import render_title_template
+from .catalog.service import recent_home
+from .media import media_permissions
 from .kobo_sync_status import change_archived_books
 from . import limiter
 from .services.worker import WorkerThread
@@ -1004,17 +1006,28 @@ def health_check():
 
 # ################################### View Books list ##################################################################
 
-@web.route("/", defaults={'page': 1})
-@web.route('/page/<int:page>')
+@web.route("/")
 @login_required_if_no_ano
-def index(page):
+def index():
     if current_user.is_authenticated and current_user.role_admin():
         arch_warning = helper.check_architecture()
         if arch_warning:
             flash(arch_warning, category="cwa_arch_warning")
 
+    books, movies, total_books, total_movies = recent_home(limit=12)
+    can_edit_media = media_permissions()["can_edit_media"]
+    return render_title_template(
+        "catalog/home.html", title=_("Home"), page="root", books=books, movies=movies,
+        total_books=total_books, total_movies=total_movies, can_edit_media=can_edit_media,
+    )
+
+
+@web.route('/page/<int:page>')
+@login_required_if_no_ano
+def legacy_book_page(page):
     sort_param = (request.args.get('sort') or 'stored').lower()
-    return render_books_list("newest", sort_param, 1, page)
+    return redirect(url_for("web.books_list", data="newest", sort_param=sort_param,
+                            book_id=1, page=max(page, 1)))
 
 
 @web.route('/<data>/<sort_param>', defaults={'page': 1, 'book_id': 1})

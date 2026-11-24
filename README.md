@@ -9,6 +9,12 @@
 ![GitHub commits since latest release](https://img.shields.io/github/commits-since/crocodilestick/calibre-web-automated/latest)
 ![OAuth 2.0 + OIDC](https://img.shields.io/badge/OAuth-2.0%20%2B%20OIDC-blue?style=flat&logo=oauth)
 
+## Home Library: books + physical movies
+
+This working copy extends CWA with a **physical movie collection** while preserving the existing book library and Calibre automation. It includes a responsive movie grid and detail pages, per-copy format/location/edition/barcode/condition fields, manual CRUD, custom posters, and TMDB search/import/refresh.
+
+See **[Home Library setup and movie usage](HOME_LIBRARY.md)** for the local Docker Compose setup and TMDB configuration.
+
 # Supporting the Project ❤️
 
 CWA is and always will be free and open source. If it makes your library life easier and you're able to support development, contributions go directly to:

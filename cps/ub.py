@@ -1117,9 +1117,65 @@ def migrate_shelf_table(engine, _session):
 # Migrate database to current version, has to be updated after every database change. Currently migration from
 # maybe 4/5 versions back to current should work.
 # Migration is done by checking if relevant columns are existing, and then adding rows with SQL commands
+def migrate_external_book_table(engine, _session):
+    """Add audiobook columns to an existing external_book table."""
+    additions = {
+        "narrator": "VARCHAR(300) NOT NULL DEFAULT ''",
+        "duration_minutes": "INTEGER",
+        "abridged": "BOOLEAN NOT NULL DEFAULT 0",
+        "audio_format": "VARCHAR(20) NOT NULL DEFAULT ''",
+    }
+    try:
+        with engine.begin() as connection:
+            existing = {
+                row[1]
+                for row in connection.exec_driver_sql("PRAGMA table_info(external_book)")
+            }
+            if not existing:
+                return
+            for name, ddl in additions.items():
+                if name not in existing:
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE external_book ADD COLUMN {name} {ddl}"
+                    )
+    except Exception as exc:
+        log.error("Could not migrate external_book table: %s", exc)
+
+
+def migrate_movie_table(engine, _session):
+    """Add rich metadata columns to an existing movie table."""
+    additions = {
+        "tagline": "VARCHAR(500) NOT NULL DEFAULT ''",
+        "backdrop_filename": "VARCHAR(100) NOT NULL DEFAULT ''",
+        "trailer_url": "VARCHAR(300) NOT NULL DEFAULT ''",
+        "collection_name": "VARCHAR(200) NOT NULL DEFAULT ''",
+        "vote_count": "INTEGER NOT NULL DEFAULT 0",
+    }
+    try:
+        with engine.begin() as connection:
+            existing = {
+                row[1]
+                for row in connection.exec_driver_sql("PRAGMA table_info(movie)")
+            }
+            if not existing:
+                return
+            for name, ddl in additions.items():
+                if name not in existing:
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE movie ADD COLUMN {name} {ddl}"
+                    )
+    except Exception as exc:
+        log.error("Could not migrate movie table: %s", exc)
+
+
 def migrate_Database(_session):
     engine = _session.bind
     add_missing_tables(engine, _session)
+    # ``create_all`` adds new tables but not indexes/columns to existing feature tables.
+    from .movie_library.models import ensure_movie_indexes
+    ensure_movie_indexes(engine)
+    migrate_movie_table(engine, _session)
+    migrate_external_book_table(engine, _session)
     migrate_registration_table(engine, _session)
     migrate_user_session_table(engine, _session)
     migrate_user_table(engine, _session)

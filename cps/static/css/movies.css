@@ -1,0 +1,136 @@
+/* Movie-only details: watched state, TMDB metadata, credits, and ratings. */
+.movie-watched-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #5f9d7b;
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+}
+
+.movie-detail-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 18px 0;
+  color: var(--media-muted);
+}
+
+.movie-rating-chip {
+  padding: 1px 7px;
+  border: 1px solid var(--media-border);
+  border-radius: 4px;
+}
+
+.movie-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 24px;
+}
+
+.movie-genres a {
+  padding: 5px 11px;
+  border: 1px solid var(--media-border);
+  border-radius: 999px;
+  background: var(--media-surface-soft);
+  color: var(--media-muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.movie-genres a:hover {
+  border-color: var(--media-accent);
+  color: var(--media-text);
+}
+
+.movie-score-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.movie-score-row > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 110px;
+  padding: 12px 16px;
+  border: 1px solid var(--media-border);
+  border-radius: 10px;
+  background: var(--media-surface-soft);
+}
+
+.movie-score-row strong {
+  color: var(--media-accent-strong);
+  font-size: 20px;
+}
+
+.movie-score-row span {
+  margin-top: 3px;
+  color: var(--media-muted);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.movie-credits {
+  margin: 26px 0;
+}
+
+.movie-credits > div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--media-border);
+}
+
+.movie-credits dt {
+  color: var(--media-text);
+}
+
+.movie-credits dd,
+.movie-credits a {
+  color: var(--media-muted);
+}
+
+.movie-credits dd {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.movie-config-notice {
+  display: flex;
+  gap: 15px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--media-surface-soft);
+}
+
+.movie-config-notice > .glyphicon {
+  margin-top: 3px;
+  color: var(--media-accent);
+}
+
+.movie-config-notice p {
+  margin: 6px 0 0;
+  color: var(--media-muted);
+  line-height: 1.6;
+}
+
+.movie-search-error {
+  color: var(--media-danger-text);
+}
+
+@media (max-width: 420px) {
+  .movie-credits > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

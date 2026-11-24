@@ -127,7 +127,8 @@ class TestKoboTokenOwnership:
 # (file, function) pairs that are intentionally reachable without these decorators. None today.
 PUBLIC_ROUTES = set()
 AUTH_DECORATORS = {"login_required_if_no_ano", "user_login_required", "admin_required",
-                   "internal_only", "admin_or_edit_required"}
+                   "internal_only", "admin_or_edit_required", "edit_required", "delete_required",
+                   "media_edit_required", "media_delete_required", "api_key_required"}
 
 
 def _routes(relpath):
@@ -144,7 +145,11 @@ def _routes(relpath):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("relpath", ["cps/cwa_functions.py", "cps/duplicates.py"])
+@pytest.mark.parametrize("relpath", [
+    "cps/cwa_functions.py", "cps/duplicates.py", "cps/movie_library/routes.py",
+    "cps/external_books/routes.py", "cps/catalog/routes.py",
+    "cps/wishlist/routes.py", "cps/media_api/routes.py",
+])
 def test_every_route_has_an_auth_decorator(relpath):
     missing = [name for name, decos in _routes(relpath)
                if not decos & AUTH_DECORATORS and (relpath, name) not in PUBLIC_ROUTES]

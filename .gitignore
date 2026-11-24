@@ -157,11 +157,15 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.env
+.env.*
+!.env.example
 *.env
 .venv
 env/
 venv/
 ENV/
+/data/
 env.bak/
 venv.bak/
 tmp/

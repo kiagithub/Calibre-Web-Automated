@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% from "components/media_card.html" import media_card %}
+{% block body %}
+<main class="media-page home-page" aria-labelledby="home-heading">
+  <header class="media-header home-header">
+    <div>
+      <span class="media-eyebrow">{{ _('Your collection') }}</span>
+      <h1 id="home-heading">{{ _('Home Library') }}</h1>
+      <p>{{ _('Books and movies, together in one place.') }}</p>
+    </div>
+  </header>
+
+  <section class="media-shelf" aria-labelledby="home-books-heading">
+    <div class="media-shelf-heading">
+      <div>
+        <h2 id="home-books-heading">{{ _('Books') }}</h2>
+        <p>{{ total_books }} {{ _('item') if total_books == 1 else _('items') }}</p>
+      </div>
+      <a class="btn btn-default" href="{{ url_for('catalog.index') }}">{{ _('View all books') }} <span class="glyphicon glyphicon-arrow-right" aria-hidden="true"></span></a>
+    </div>
+    {% if books %}
+    <div class="media-grid">{% for card in books %}{{ media_card(card) }}{% endfor %}</div>
+    {% else %}
+    <div class="media-empty-state">
+      <h3>{{ _('No books yet') }}</h3>
+      <p>{{ _('Upload a file to Calibre or catalog a physical or Kindle book.') }}</p>
+      {% if can_edit_media %}<a class="btn btn-primary" href="{{ url_for('external_books.new') }}">{{ _('Add a personal book') }}</a>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="media-shelf" aria-labelledby="home-movies-heading">
+    <div class="media-shelf-heading">
+      <div>
+        <h2 id="home-movies-heading">{{ _('Movies') }}</h2>
+        <p>{{ total_movies }} {{ _('item') if total_movies == 1 else _('items') }}</p>
+      </div>
+      <a class="btn btn-default" href="{{ url_for('movies.index') }}">{{ _('View all movies') }} <span class="glyphicon glyphicon-arrow-right" aria-hidden="true"></span></a>
+    </div>
+    {% if movies %}
+    <div class="media-grid">{% for card in movies %}{{ media_card(card) }}{% endfor %}</div>
+    {% else %}
+    <div class="media-empty-state">
+      <h3>{{ _('No movies yet') }}</h3>
+      <p>{{ _('Add a physical movie and fetch its metadata from TMDB.') }}</p>
+      {% if can_edit_media %}<a class="btn btn-primary" href="{{ url_for('movies.new') }}">{{ _('Add a movie') }}</a>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

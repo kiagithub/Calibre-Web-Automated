@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+{% from "components/media_card.html" import media_card %}
+{% block body %}
+<main class="external-books-page external-books-index" aria-labelledby="external-books-heading">
+  <header class="external-books-header">
+    <div>
+      <span class="external-books-eyebrow"><span class="glyphicon glyphicon-book" aria-hidden="true"></span> {{ _('Owned beyond Calibre') }}</span>
+      <h1 id="external-books-heading">{{ _('External books') }}</h1>
+      <p>{{ _('Keep physical books, Kindle editions, audiobooks, and other digital books together in one collection.') }}</p>
+    </div>
+    {% if can_edit_media %}
+    <a class="btn btn-primary" href="{{ url_for('external_books.new') }}">
+      <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> {{ _('Add Book') }}
+    </a>
+    {% endif %}
+  </header>
+
+  <section class="external-books-toolbar" aria-label="{{ _('Search and filter external books') }}">
+    <form method="get" action="{{ url_for('external_books.index') }}" class="external-books-filter-form">
+      <div class="form-group">
+        <label for="external-book-query">{{ _('Search external books') }}</label>
+        <input class="form-control" type="search" id="external-book-query" name="q" value="{{ query_text }}" maxlength="200" placeholder="{{ _('Title, author, series, identifier…') }}">
+      </div>
+      <div class="form-group">
+        <label for="external-book-type">{{ _('Book type') }}</label>
+        <select class="form-control" id="external-book-type" name="media_type">
+          <option value="">{{ _('All types') }}</option>
+          {% for value, label in types %}<option value="{{ value }}"{% if selected_type == value %} selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="external-book-tag">{{ _('Tag') }}</label>
+        <select class="form-control" id="external-book-tag" name="tag">
+          <option value="">{{ _('All tags') }}</option>
+          {% for tag in tags %}<option value="{{ tag }}"{% if selected_tag == tag %} selected{% endif %}>{{ tag }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="external-book-sort">{{ _('Sort by') }}</label>
+        <select class="form-control" id="external-book-sort" name="sort">
+          <option value="title"{% if sort == 'title' %} selected{% endif %}>{{ _('Title') }}</option>
+          <option value="added"{% if sort == 'added' %} selected{% endif %}>{{ _('Recently added') }}</option>
+          <option value="published"{% if sort == 'published' %} selected{% endif %}>{{ _('Publication date') }}</option>
+          <option value="rating"{% if sort == 'rating' %} selected{% endif %}>{{ _('My rating') }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="external-book-direction">{{ _('Sort direction') }}</label>
+        <select class="form-control" id="external-book-direction" name="direction">
+          <option value="asc"{% if direction == 'asc' %} selected{% endif %}>{{ _('Ascending') }}</option>
+          <option value="desc"{% if direction == 'desc' %} selected{% endif %}>{{ _('Descending') }}</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">{{ _('Apply filters') }}</button>
+      {% if query_text or selected_type or selected_tag %}<a class="btn btn-default" href="{{ url_for('external_books.index') }}">{{ _('Clear filters') }}</a>{% endif %}
+    </form>
+    <p class="external-books-total">{{ total }} {{ _('book') if total == 1 else _('books') }}{% if query_text %} {{ _('matching “%(query)s”', query=query_text) }}{% endif %}</p>
+  </section>
+
+  {% if entries %}
+  <section class="media-grid" aria-label="{{ _('External book collection') }}">
+    {% for card in entries %}{{ media_card(card) }}{% endfor %}
+  </section>
+  {% else %}
+  <section class="external-books-empty-state">
+    <span class="glyphicon glyphicon-book" aria-hidden="true"></span>
+    {% if query_text or selected_type or selected_tag %}
+    <h2>{{ _('No external books found') }}</h2>
+    <p>{{ _('Try another search or remove one of the filters.') }}</p>
+    <a class="btn btn-default" href="{{ url_for('external_books.index') }}">{{ _('Show all external books') }}</a>
+    {% else %}
+    <h2>{{ _('Start your external book collection') }}</h2>
+    <p>{{ _('Add a book manually, or search online metadata to fill in the details.') }}</p>
+    {% if can_edit_media %}<a class="btn btn-primary" href="{{ url_for('external_books.new') }}">{{ _('Add your first book') }}</a>{% endif %}
+    {% endif %}
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

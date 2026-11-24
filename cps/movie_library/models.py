@@ -1,0 +1,83 @@
+# Calibre-Web Automated – fork of Calibre-Web
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+from datetime import datetime, timezone
+
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
+
+from .. import logger
+from ..ub import Base
+
+MOVIE_CREATED_AT_INDEX = "ix_movie_created_at"
+log = logger.create()
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def ensure_movie_indexes(engine):
+    """Add indexes that ``create_all`` cannot apply to pre-existing tables."""
+    try:
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                f"CREATE INDEX IF NOT EXISTS {MOVIE_CREATED_AT_INDEX} "
+                "ON movie (created_at)"
+            )
+    except Exception as exc:
+        log.error("Could not ensure movie indexes: %s", exc)
+
+
+class Movie(Base):
+    """One physical movie edition/copy, including its online metadata."""
+
+    __tablename__ = "movie"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(300), nullable=False, index=True)
+    original_title = Column(String(300), default="")
+    overview = Column(Text, default="")
+    release_date = Column(String(10), default="", index=True)
+    runtime = Column(Integer)
+    director = Column(String(500), default="")
+    cast_members = Column(Text, default="")
+    genres = Column(String(500), default="")
+    content_rating = Column(String(20), default="")
+    tagline = Column(String(500), default="")
+    backdrop_filename = Column(String(100), default="")
+    trailer_url = Column(String(300), default="")
+    collection_name = Column(String(200), default="", index=True)
+    vote_count = Column(Integer, default=0)
+    tmdb_rating = Column(Float)
+    personal_rating = Column(Integer)
+    tmdb_id = Column(Integer, index=True)
+    imdb_id = Column(String(20), default="")
+
+    media_format = Column(String(40), nullable=False, default="Blu-ray", index=True)
+    location = Column(String(200), default="", index=True)
+    barcode = Column(String(64), default="")
+    edition = Column(String(200), default="")
+    condition = Column(String(40), default="Good")
+    date_acquired = Column(String(10), default="")
+    is_watched = Column(Boolean, nullable=False, default=False)
+    notes = Column(Text, default="")
+
+    poster_filename = Column(String(100), default="")
+    metadata_updated_at = Column(DateTime)
+    created_at = Column(DateTime, nullable=False, default=utc_now, index=True)
+    updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
+
+    @property
+    def year(self):
+        return self.release_date[:4] if self.release_date else ""
+
+    @property
+    def genre_list(self):
+        return [value.strip() for value in (self.genres or "").split(",") if value.strip()]
+
+    @property
+    def cast_list(self):
+        return [value.strip() for value in (self.cast_members or "").split(",") if value.strip()]
+
+    def __repr__(self):
+        return f"<Movie {self.id}: {self.title!r} ({self.media_format})>"
