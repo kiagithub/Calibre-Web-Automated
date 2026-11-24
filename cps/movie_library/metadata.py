@@ -20,7 +20,9 @@ from ..media.images import (
 
 API_ROOT = "https://api.themoviedb.org/3"
 POSTER_ROOT = "https://image.tmdb.org/t/p/w500"
+BACKDROP_ROOT = "https://image.tmdb.org/t/p/w1280"
 MAX_POSTER_BYTES = 8 * 1024 * 1024
+MAX_BACKDROP_BYTES = 12 * 1024 * 1024
 PLACEHOLDER_CREDENTIALS = {
     "your_tmdb_read_access_token_here", "your_tmdb_api_key_here",
     "your_token_here", "your_v3_key_here",
@@ -39,6 +41,13 @@ def _poster_url(path):
     path = _text(path)
     if path.startswith("/") and ".." not in path and "\\" not in path:
         return POSTER_ROOT + path
+    return ""
+
+
+def _backdrop_url(path):
+    path = _text(path)
+    if path.startswith("/") and ".." not in path and "\\" not in path:
+        return BACKDROP_ROOT + path
     return ""
 
 
@@ -131,15 +140,23 @@ class TMDBClient:
             raise MovieMetadataError("Select a valid TMDB result.") from exc
         if tmdb_id <= 0:
             raise MovieMetadataError("Select a valid TMDB result.")
-        item = self._get(f"movie/{tmdb_id}", {"append_to_response": "credits,release_dates"})
+        item = self._get(f"movie/{tmdb_id}", {"append_to_response": "credits,release_dates,videos"})
         summary = self._summary(item)
         credits = item.get("credits") if isinstance(item.get("credits"), dict) else {}
         crew = credits.get("crew", []) if isinstance(credits.get("crew", []), list) else []
         cast = credits.get("cast", []) if isinstance(credits.get("cast", []), list) else []
         genres = item.get("genres", []) if isinstance(item.get("genres", []), list) else []
         runtime = item.get("runtime")
+        collection = item.get("belongs_to_collection")
+        collection_name = _text(collection.get("name")) if isinstance(collection, dict) else ""
+        vote_count = item.get("vote_count")
         summary.update({
             "overview": _text(item.get("overview")),
+            "tagline": _text(item.get("tagline")),
+            "collection_name": collection_name,
+            "vote_count": int(vote_count) if isinstance(vote_count, int) and vote_count >= 0 else 0,
+            "trailer_url": self._trailer_url(item.get("videos")),
+            "backdrop_url": _backdrop_url(item.get("backdrop_path")),
             "director": ", ".join(
                 _text(person.get("name")) for person in crew
                 if isinstance(person, dict) and person.get("job") == "Director" and person.get("name")
@@ -157,6 +174,34 @@ class TMDBClient:
             "content_rating": self._content_rating(item.get("release_dates")),
         })
         return summary
+
+    @staticmethod
+    def _trailer_url(videos):
+        if not isinstance(videos, dict):
+            return ""
+        results = videos.get("results", [])
+        if not isinstance(results, list):
+            return ""
+        candidates = []
+        for vid in results:
+            if not isinstance(vid, dict):
+                continue
+            site = _text(vid.get("site")).lower()
+            key = _text(vid.get("key"))
+            if site != "youtube" or not key:
+                continue
+            vtype = _text(vid.get("type")).lower()
+            official = bool(vid.get("official"))
+            score = 0
+            if vtype == "trailer":
+                score = 4 if official else 3
+            elif vtype == "teaser":
+                score = 2 if official else 1
+            candidates.append((score, key))
+        if not candidates:
+            return ""
+        candidates.sort(key=lambda c: c[0], reverse=True)
+        return f"https://www.youtube.com/watch?v={candidates[0][1]}"
 
     @staticmethod
     def _content_rating(release_dates):
@@ -195,6 +240,29 @@ class TMDBClient:
         except ImageDownloadError as exc:
             raise MovieMetadataError(
                 "The movie metadata was saved, but its poster could not be downloaded."
+            ) from exc
+
+    def download_backdrop(self, url):
+        """Download a TMDB backdrop with host, size, and image-format checks."""
+        if not self._trusted_poster_url(url):
+            raise MovieMetadataError("The backdrop URL is not a trusted TMDB image URL.")
+        if not self.configured:
+            raise MovieMetadataError("TMDB is not configured.")
+        try:
+            downloaded = download_image(
+                url, max_bytes=MAX_BACKDROP_BYTES, session=self.http, timeout=(5, 20),
+                url_validator=self._trusted_poster_url,
+            )
+            return downloaded.data, downloaded.extension
+        except ImageRedirectError as exc:
+            raise MovieMetadataError("TMDB backdrop redirects are not followed.") from exc
+        except ImageTooLargeError as exc:
+            raise MovieMetadataError("The backdrop exceeds the 12 MB size limit.") from exc
+        except InvalidImageError as exc:
+            raise MovieMetadataError("TMDB returned an unsupported backdrop image.") from exc
+        except ImageDownloadError as exc:
+            raise MovieMetadataError(
+                "The movie metadata was saved, but its backdrop could not be downloaded."
             ) from exc
 
     @staticmethod

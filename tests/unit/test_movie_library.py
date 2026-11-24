@@ -128,6 +128,17 @@ class TestTMDBMetadata:
             "id": 329865, "title": "Arrival", "release_date": "2016-11-11",
             "overview": "Overview", "runtime": 116, "imdb_id": "tt2543164",
             "vote_average": 7.6, "poster_path": "/poster.jpg",
+            "tagline": "Why are they here?",
+            "vote_count": 16420,
+            "backdrop_path": "/backdrop.jpg",
+            "belongs_to_collection": {"id": 1234, "name": "SciFi Classics"},
+            "videos": {
+                "results": [
+                    {"site": "YouTube", "key": "teaser123", "type": "Teaser", "official": True},
+                    {"site": "YouTube", "key": "trailer456", "type": "Trailer", "official": True},
+                    {"site": "Vimeo", "key": "vimeo789", "type": "Trailer", "official": True},
+                ]
+            },
             "credits": {
                 "crew": [{"name": "Denis Villeneuve", "job": "Director"}, {"name": "Someone", "job": "Producer"}],
                 "cast": [{"name": "Amy Adams"}, {"name": "Jeremy Renner"}],
@@ -143,6 +154,11 @@ class TestTMDBMetadata:
         assert result["genres"] == "Drama, Science Fiction"
         assert result["runtime"] == 116
         assert result["content_rating"] == "PG-13"
+        assert result["tagline"] == "Why are they here?"
+        assert result["vote_count"] == 16420
+        assert result["collection_name"] == "SciFi Classics"
+        assert result["trailer_url"] == "https://www.youtube.com/watch?v=trailer456"
+        assert result["backdrop_url"] == "https://image.tmdb.org/t/p/w1280/backdrop.jpg"
 
     def test_malformed_json_has_safe_error(self):
         response = FakeResponse(ValueError("bad json"))
@@ -176,6 +192,18 @@ class TestTMDBMetadata:
         with pytest.raises(MovieMetadataError, match="size limit"):
             client.download_poster("https://image.tmdb.org/t/p/w500/poster.jpg")
         assert response.closed
+
+    def test_backdrop_validates_and_closes_response(self):
+        response = FakeResponse(data=JPEG)
+        client = TMDBClient(api_key="key", read_access_token="", session=FakeSession(response))
+        data, extension = client.download_backdrop("https://image.tmdb.org/t/p/w1280/backdrop.jpg")
+        assert (data, extension) == (JPEG, "jpg")
+        assert response.closed
+
+    def test_backdrop_rejects_untrusted_host(self):
+        client = TMDBClient(api_key="key", read_access_token="", session=FakeSession())
+        with pytest.raises(MovieMetadataError, match="trusted TMDB"):
+            client.download_backdrop("https://evil.com/t/p/w1280/backdrop.jpg")
 
     @pytest.mark.parametrize("data,expected", [
         (JPEG, "jpg"),
