@@ -93,12 +93,11 @@ Records and ratings are shared across library users, matching the movie collecti
 
 ### Start
 
-Clone this repository and check out the `shelfmark` branch (or `feature/physical-movies`):
+Clone this repository (`main` includes the complete Home Library and Shelfmark feature set):
 
 ```bash
 git clone https://github.com/kiagithub/Calibre-Web-Automated.git
 cd Calibre-Web-Automated
-git checkout shelfmark
 ```
 
 Create the local environment file, replace placeholders with credentials only if desired, and build from this source checkout:
@@ -290,7 +289,7 @@ Filters and sorts are ordinary GET parameters, so searches can be bookmarked or 
 | Personal books | `/books/personal/?q=dune&media_type=physical` | `q`, `media_type`, `tag`, `sort`, `direction`, `page` |
 | Movies | `/movies/?q=arrival&format=Blu-ray` | `q`, `format`, `sort`, `direction`, `page` |
 
-Combined books use cursor-based pagination; use the Previous/Next links the page generates rather than constructing `cursor` values by hand. The **Hide owned** toggle is a client-side filter on metadata search results and is not currently a URL parameter.
+Combined books use cursor-based pagination; use the Previous/Next links the page generates rather than constructing `cursor` values by hand. Metadata search also supports targeted `search_by=title|author|isbn|all` field selectors and backend `owned=hide|only` filtering alongside the client-side **Hide owned** toggle.
 
 ## Development checks
 
@@ -331,12 +330,11 @@ A full browser check should exercise Home, Books, Movies, add/edit/delete, metad
 
 ## Current status
 
-- The Home Library features above are implemented on `shelfmark` (and merged into `feature/physical-movies`) and pushed to `origin`.
-- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync with author enrichment, notification preferences, per-user request policies, and companion-library links, Phase 4 optional Audiobookshelf ownership provider and per-user catalog view defaults, and rich movie metadata expansion with TMDB taglines, franchise collections, trailer links, vote counts, and backdrop banner artwork.
+- The Home Library features above are implemented on `main` (via `shelfmark`) and pushed to `origin`.
+- Recent work includes parallel metadata search with a grace window and result caching, lazy cover thumbnails, a shared metadata-search lifecycle, cursor-based Books pagination, combined book search from the navbar, the `movie.created_at` startup index, backup/migration documentation, order-independent legacy tests, the book-and-play favicon, Phase 1 Shelfmark-inspired ownership badges with Open Library, `search_by` field targeting, backend `owned` filtering, and cross-provider deduplication, Phase 2 audiobook catalog support, wishlist/requests, collection stats, and the read-only media API, Phase 3 Hardcover shelf sync with author enrichment, notification preferences, per-user request policies, and companion-library links, Phase 4 optional Audiobookshelf ownership provider and per-user catalog view defaults, and rich movie metadata expansion with TMDB taglines, franchise collections, trailer links, vote counts, and backdrop banner artwork.
 
 ## Optional follow-ups
 
-- Open a pull request from `shelfmark` / `feature/physical-movies`.
 - Run the full browser check described under Development checks against an isolated Docker config/library.
 - Exercise keyset Previous/Next against a test library with more than 24 books; cursor behavior and link generation are covered by unit tests, but a multi-page live check remains.
 - Repair the pre-existing OAuth and ingest-shell test failures listed under Development checks.

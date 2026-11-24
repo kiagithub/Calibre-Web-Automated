@@ -1,8 +1,8 @@
 # Shelfmark → Home Library: Feature Integration Plan
 
-- **Status:** Draft for review
-- **Branch:** `shelfmark`
-- **Date:** 2026-11-15
+- **Status:** Implemented (Phases 1–4)
+- **Branch:** `shelfmark` (merged to `main`)
+- **Date:** 2026-11-15 (updated 2026-11-24)
 - **Upstream source:** [`calibrain/shelfmark`](https://github.com/calibrain/shelfmark) at revision `9b89857` (2026-11-15)
 
 This document is a plan, not an implementation. It inventories Shelfmark's features, maps them to Home Library's books-and-movies catalog, and proposes a phased roadmap. Nothing here changes the current schema until a phase is approved.
