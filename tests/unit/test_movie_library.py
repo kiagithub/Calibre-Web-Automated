@@ -357,10 +357,20 @@ class TestMovieRoutes:
             "/movies/metadata/search", json={"query": "Arrival", "check_owned": True}
         )
         plain = client.post("/movies/metadata/search", json={"query": "Arrival"})
+        hide_owned = client.post(
+            "/movies/metadata/search", json={"query": "Arrival", "owned": "hide"}
+        )
+        only_owned = client.post(
+            "/movies/metadata/search", json={"query": "Arrival", "owned": "only"}
+        )
 
         assert annotated.status_code == 200
         assert annotated.get_json()["results"][0]["owned"] is True
         assert "owned" not in plain.get_json()["results"][0]
+        assert hide_owned.status_code == 200
+        assert hide_owned.get_json()["results"] == []
+        assert only_owned.status_code == 200
+        assert len(only_owned.get_json()["results"]) == 1
 
     def test_fulfilling_wishlist_request_links_new_movie(self, movie_app, monkeypatch):
         app, session, _user = movie_app

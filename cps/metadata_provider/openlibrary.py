@@ -26,14 +26,20 @@ class OpenLibrary(Metadata):
     )
 
     def search(
-        self, query: str, generic_cover: str = "", locale: str = "en"
+        self, query: str, generic_cover: str = "", locale: str = "en", search_by: str = ""
     ) -> Optional[List[MetaRecord]]:
         if not self.active or not query:
             return []
+        params = {"limit": 12, "fields": self.FIELDS}
+        search_by = str(search_by or "").lower().strip()
+        if search_by in ("title", "author", "isbn"):
+            params[search_by] = query
+        else:
+            params["q"] = query
         try:
             response = requests.get(
                 self.SEARCH_URL,
-                params={"q": query, "limit": 12, "fields": self.FIELDS},
+                params=params,
                 headers={"User-Agent": "Calibre-Web-Automated"},
                 timeout=15,
             )

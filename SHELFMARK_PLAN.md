@@ -32,16 +32,15 @@ Phase 1 is implemented on the `shelfmark` branch:
 
 - Read-only ownership index for Calibre, personal books, and movies, cached for 10 minutes and refreshed when the underlying data changes.
 - **In library** badges in personal-book metadata search and TMDB movie search, naming the source (Calibre, Personal, or Movies).
-- **Hide owned** toggle on both metadata-search result lists.
-- Open Library metadata provider (no API key).
+- **Hide owned** toggle on both metadata-search result lists with backend `owned=hide|only` support.
+- Open Library metadata provider (no API key) with `search_by=title|author|isbn|all` targeting.
 - Cross-provider deduplication by provider ID, ISBN-10/13, or normalized title + author.
 - Documented search URL parameters.
 - Unit coverage for matching, provider indexes, deduplication, Open Library parsing, route annotations, and UI contracts.
 
 Remaining Phase 1 follow-ups:
 
-- `owned=hide|only|all` as a URL-persisted catalog filter (the checkbox currently filters client-side only).
-- A `search_by=title|author|isbn` selector for metadata search.
+- Catalog view persisted `owned=hide|only|all` URL parameter for index views.
 - Optional Audiobookshelf ownership provider, which moves with the audiobook work in Phase 2.
 
 ## Implementation status — Phase 2 (2026-11-15)
@@ -88,10 +87,12 @@ Phase 4 is implemented on the `shelfmark` branch:
   - Movie detail page backdrop hero banner, tagline, collection grouping, vote counts, and trailer link buttons.
   - Manual form controls and custom backdrop image upload support.
   - Serialization of rich movie metadata in the read-only Media API (`/api/media/movies`).
+- Targeted metadata search and backend owned filter:
+  - `search_by=title|author|isbn|all` selector on external book metadata search, mapped to Open Library field queries and Google Books prefixes (`intitle:`, `inauthor:`, `isbn:`).
+  - Backend `owned=hide|only` filter support in `/metadata/search` and `/movies/metadata/search`.
 
 Remaining follow-ups:
 
-- URL-persisted `owned` filter (`owned=hide|only|all`) and `search_by` selector for metadata search.
 - Apprise/multi-route notifications.
 - Custom post-fulfilment hooks, only if a concrete need appears.
 

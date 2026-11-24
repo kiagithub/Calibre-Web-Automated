@@ -64,3 +64,30 @@ def test_openlibrary_search_failure_returns_empty_results(monkeypatch):
     monkeypatch.setattr(openlibrary.requests, "get", fail)
 
     assert openlibrary.OpenLibrary().search("Dune") == []
+
+
+@pytest.mark.unit
+def test_openlibrary_supports_search_by(monkeypatch):
+    captured_params = []
+
+    def fake_get(url, params=None, **kwargs):
+        captured_params.append(params)
+        return FakeResponse({"docs": []})
+
+    monkeypatch.setattr(openlibrary.requests, "get", fake_get)
+    provider = openlibrary.OpenLibrary()
+
+    provider.search("Frank Herbert", search_by="author")
+    assert captured_params[-1]["author"] == "Frank Herbert"
+    assert "q" not in captured_params[-1]
+
+    provider.search("Dune", search_by="title")
+    assert captured_params[-1]["title"] == "Dune"
+    assert "q" not in captured_params[-1]
+
+    provider.search("9780441172719", search_by="isbn")
+    assert captured_params[-1]["isbn"] == "9780441172719"
+    assert "q" not in captured_params[-1]
+
+    provider.search("Dune", search_by="all")
+    assert captured_params[-1]["q"] == "Dune"

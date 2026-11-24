@@ -180,3 +180,50 @@ class TestMetadataSearch:
 
         assert [item["title"] for item in response.get_json()] == ["Enabled"]
         assert disabled.calls == 0
+
+    def test_owned_filter_hide_and_only(self, metadata_app, monkeypatch):
+        provider = FakeProvider([record("item1", "Item One"), record("item2", "Item Two")])
+        monkeypatch.setattr(search_metadata, "cl", [provider])
+        import cps.media.library_check as library_check
+
+        def annotate(results):
+            for item in results:
+                if item["title"] == "Item One":
+                    item["owned"] = True
+                    item["owned_as"] = "Calibre"
+                else:
+                    item["owned"] = False
+            return results
+
+        monkeypatch.setattr(library_check, "annotate_books", annotate)
+        client = metadata_app.test_client()
+
+        hide_response = client.post(
+            "/metadata/search", data={"query": "item", "owned": "hide"}
+        )
+        assert [x["title"] for x in hide_response.get_json()] == ["Item Two"]
+
+        only_response = client.post(
+            "/metadata/search", data={"query": "item", "owned": "only"}
+        )
+        assert [x["title"] for x in only_response.get_json()] == ["Item One"]
+
+    def test_search_by_passes_parameter_and_scopes_cache(self, metadata_app, monkeypatch):
+        captured = []
+
+        class SearchByProvider(FakeProvider):
+            def search(self, query, generic_cover="", locale="en", search_by=""):
+                captured.append((query, search_by))
+                return [record(f"{search_by or 'all'}-id", f"{search_by or 'all'} result")]
+
+        provider = SearchByProvider([])
+        monkeypatch.setattr(search_metadata, "cl", [provider])
+        client = metadata_app.test_client()
+
+        r1 = client.post("/metadata/search", data={"query": "Dune", "search_by": "title"})
+        assert r1.get_json()[0]["title"] == "title result"
+        assert captured[-1] == ("Dune", "title")
+
+        r2 = client.post("/metadata/search", data={"query": "Dune", "search_by": "author"})
+        assert r2.get_json()[0]["title"] == "author result"
+        assert captured[-1] == ("Dune", "author")

@@ -21,9 +21,17 @@
       <span class="external-books-provider-label">{{ _('Details · identifiers · covers') }}</span>
     </div>
     <form class="external-books-metadata-search-form" novalidate>
-      <div class="form-group">
+      <div class="form-group external-books-search-group">
         <label for="metadata-query">{{ _('Title, author, or identifier') }}</label>
-        <input class="form-control" id="metadata-query" name="query" type="search" maxlength="200" value="{{ form.get('title', book.title if book else '') }}" required>
+        <div class="external-books-search-row">
+          <select class="form-control" id="metadata-search-by" name="search_by" aria-label="{{ _('Search by') }}">
+            <option value="all">{{ _('All fields') }}</option>
+            <option value="title">{{ _('Title') }}</option>
+            <option value="author">{{ _('Author') }}</option>
+            <option value="isbn">{{ _('ISBN / Identifier') }}</option>
+          </select>
+          <input class="form-control" id="metadata-query" name="query" type="search" maxlength="200" value="{{ form.get('title', book.title if book else '') }}" required>
+        </div>
       </div>
       <button class="btn btn-primary" type="submit"><span class="glyphicon glyphicon-search" aria-hidden="true"></span> {{ _('Search metadata') }}</button>
     </form>

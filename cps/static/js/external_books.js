@@ -210,9 +210,17 @@
         failed: "Metadata search failed."
       },
       buildRequest: function (query, form, csrf) {
+        var params = {query: query, check_owned: "1"};
+        if (form.elements.search_by && form.elements.search_by.value && form.elements.search_by.value !== "all") {
+          params.search_by = form.elements.search_by.value;
+        }
+        var hideOwned = document.getElementById("metadata-hide-owned");
+        if (hideOwned && hideOwned.checked) {
+          params.owned = "hide";
+        }
         return {
           headers: {"X-CSRFToken": csrf ? csrf.value : ""},
-          body: new URLSearchParams({query: query, check_owned: "1"})
+          body: new URLSearchParams(params)
         };
       },
       parseResponse: function (data) {

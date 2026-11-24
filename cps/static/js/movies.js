@@ -131,12 +131,17 @@
         failed: "Metadata search failed."
       },
       buildRequest: function (query, form, csrf) {
+        var body = {query: query, year: form.elements.year.value, check_owned: true};
+        var hideOwned = document.getElementById("movie-hide-owned");
+        if (hideOwned && hideOwned.checked) {
+          body.owned = "hide";
+        }
         return {
           headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": csrf ? csrf.value : ""
           },
-          body: JSON.stringify({query: query, year: form.elements.year.value, check_owned: true})
+          body: JSON.stringify(body)
         };
       },
       parseResponse: function (data) {

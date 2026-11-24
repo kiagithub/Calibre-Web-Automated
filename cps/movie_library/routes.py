@@ -515,13 +515,18 @@ def metadata_search():
     payload = request.get_json(silent=True) or request.form
     query = payload.get("query", "")
     year = payload.get("year", "")
-    check_owned = str(payload.get("check_owned", "")).lower() in ("1", "true", "on")
+    owned = str(payload.get("owned", "")).lower().strip()
+    check_owned = str(payload.get("check_owned", "")).lower() in ("1", "true", "on") or bool(owned)
     try:
         results = _client().search(query, year)
         if check_owned:
             from ..media.library_check import annotate_movies
 
             results = annotate_movies([dict(item) for item in results])
+        if owned == "hide":
+            results = [item for item in results if not item.get("owned")]
+        elif owned == "only":
+            results = [item for item in results if item.get("owned")]
         return jsonify({"results": results})
     except MovieMetadataError as exc:
         return jsonify({"error": str(exc)}), 503 if not _client().configured else 400

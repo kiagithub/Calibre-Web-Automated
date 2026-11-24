@@ -85,7 +85,8 @@ def test_external_book_form_contains_all_fields_and_separate_forms():
 def test_external_book_metadata_js_uses_safe_dom_and_shared_skeleton():
     script = (REPO_ROOT / "cps" / "static" / "js" / "external_books.js").read_text(encoding="utf-8")
 
-    assert 'new URLSearchParams({query: query, check_owned: "1"})' in script
+    assert 'new URLSearchParams(' in script
+    assert 'check_owned: "1"' in script
     assert '"X-CSRFToken"' in script
     assert "external-books-metadata-result-badge" in script
     assert 'card.dataset.owned' in script
