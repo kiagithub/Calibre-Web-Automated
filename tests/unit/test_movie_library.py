@@ -627,6 +627,9 @@ class TestMovieRoutes:
             cast_members="Amy Adams, Jeremy Renner", genres="Drama, Science Fiction",
             media_format="4K UHD", location="Shelf A", edition="Special Edition",
             personal_rating=9, tmdb_rating=7.6, tmdb_id=329865, is_watched=True,
+            tagline="Why are they here?", collection_name="SciFi Classics",
+            vote_count=16420, trailer_url="https://www.youtube.com/watch?v=trailer456",
+            backdrop_filename="backdrop.jpg",
         )
         db_session.add(movie)
         db_session.commit()
@@ -669,10 +672,23 @@ class TestMovieRoutes:
         monkeypatch.setattr(routes, "render_title_template", render)
         monkeypatch.setattr(routes, "_client", lambda: SimpleNamespace(configured=True))
         client = app.test_client()
+        detail_response = client.get(f"/movies/{movie.id}")
+        assert detail_response.status_code == 200
+        assert b"Denis Villeneuve" in detail_response.data
+        assert b"Why are they here?" in detail_response.data
+        assert b"SciFi Classics" in detail_response.data
+        assert b"Watch trailer" in detail_response.data
+        assert b"16,420 votes" in detail_response.data
+        assert b"movie-backdrop-banner" in detail_response.data
+
+        edit_response = client.get(f"/movies/{movie.id}/edit")
+        assert edit_response.status_code == 200
+        assert b"Edit Arrival" in edit_response.data
+        assert b"Why are they here?" in edit_response.data
+        assert b"SciFi Classics" in edit_response.data
+
         for path, marker in (
             ("/movies/", b"Movies, beautifully organized."),
-            (f"/movies/{movie.id}", b"Denis Villeneuve"),
-            (f"/movies/{movie.id}/edit", b"Edit Arrival"),
             ("/movies/new", b"Add a movie"),
         ):
             response = client.get(path)

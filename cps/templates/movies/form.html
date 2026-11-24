@@ -44,6 +44,8 @@
       <div class="media-section-heading movie-section-heading"><div><span class="media-step movie-step">Movie details</span><h2>The film</h2></div></div>
       <div class="media-form-grid movie-form-grid">
         <div class="form-group media-field-wide movie-field-wide"><label for="title">Title <span aria-hidden="true">*</span></label><input class="form-control" id="title" name="title" required maxlength="300" value="{{ form.get('title', movie.title if movie else '') }}"></div>
+        <div class="form-group media-field-wide movie-field-wide"><label for="tagline">Tagline</label><input class="form-control" id="tagline" name="tagline" maxlength="500" placeholder="e.g. Why are they here?" value="{{ form.get('tagline', movie.tagline if movie else '') }}"></div>
+        <div class="form-group media-field-wide movie-field-wide"><label for="collection_name">Collection / Series</label><input class="form-control" id="collection_name" name="collection_name" maxlength="200" placeholder="e.g. SciFi Classics" value="{{ form.get('collection_name', movie.collection_name if movie else '') }}"></div>
         <div class="form-group media-field-wide movie-field-wide"><label for="original_title">Original title</label><input class="form-control" id="original_title" name="original_title" maxlength="300" value="{{ form.get('original_title', movie.original_title if movie else '') }}"></div>
         <div class="form-group"><label for="release_date">Release date</label><input class="form-control" id="release_date" name="release_date" type="date" value="{{ form.get('release_date', movie.release_date if movie else '') }}"></div>
         <div class="form-group"><label for="runtime">Runtime (minutes)</label><input class="form-control" id="runtime" name="runtime" type="number" min="1" max="2000" value="{{ form.get('runtime', movie.runtime if movie and movie.runtime is not none else '') }}"></div>
@@ -52,6 +54,8 @@
         <div class="form-group media-field-wide movie-field-wide"><label for="cast_members">Cast <small>Comma separated</small></label><input class="form-control" id="cast_members" name="cast_members" maxlength="5000" value="{{ form.get('cast_members', movie.cast_members if movie else '') }}"></div>
         <div class="form-group"><label for="content_rating">Content rating</label><input class="form-control" id="content_rating" name="content_rating" maxlength="20" placeholder="PG-13" value="{{ form.get('content_rating', movie.content_rating if movie else '') }}"></div>
         <div class="form-group"><label for="imdb_id">IMDb ID</label><input class="form-control" id="imdb_id" name="imdb_id" maxlength="20" placeholder="tt0133093" value="{{ form.get('imdb_id', movie.imdb_id if movie else '') }}"></div>
+        <div class="form-group"><label for="vote_count">TMDB vote count</label><input class="form-control" id="vote_count" name="vote_count" type="number" min="0" value="{{ form.get('vote_count', movie.vote_count if movie and movie.vote_count is not none else '') }}"></div>
+        <div class="form-group media-field-wide movie-field-wide"><label for="trailer_url">Trailer URL</label><input class="form-control" id="trailer_url" name="trailer_url" type="url" maxlength="300" placeholder="https://www.youtube.com/watch?v=..." value="{{ form.get('trailer_url', movie.trailer_url if movie else '') }}"></div>
         <div class="form-group media-field-full movie-field-full"><label for="overview">Overview</label><textarea class="form-control" id="overview" name="overview" rows="5" maxlength="20000">{{ form.get('overview', movie.overview if movie else '') }}</textarea></div>
       </div>
     </section>
@@ -72,10 +76,13 @@
     </section>
 
     <section class="media-panel media-form-section movie-form-section movie-poster-upload">
-      <div class="media-section-heading movie-section-heading"><div><span class="media-step movie-step">Artwork</span><h2>Poster</h2></div></div>
+      <div class="media-section-heading movie-section-heading"><div><span class="media-step movie-step">Artwork</span><h2>Poster &amp; Backdrop</h2></div></div>
       <div class="media-cover-upload-content movie-poster-upload-content">
         <img src="{{ url_for('movies.poster', movie_id=movie.id) if movie else url_for('static', filename='generic_cover.svg') }}" alt="Current poster" class="media-form-cover-preview movie-form-poster-preview" width="200" height="300">
-        <div class="form-group"><label for="poster">Upload a custom poster</label><input class="form-control" id="poster" name="poster" type="file" accept="image/jpeg,image/png,image/webp"><p class="help-block">JPEG, PNG, or WebP · maximum 8 MB. Stored locally in your config volume.</p></div>
+        <div class="movie-artwork-inputs">
+          <div class="form-group"><label for="poster">Upload a custom poster</label><input class="form-control" id="poster" name="poster" type="file" accept="image/jpeg,image/png,image/webp"><p class="help-block">JPEG, PNG, or WebP · maximum 8 MB.</p></div>
+          <div class="form-group"><label for="backdrop">Upload a custom backdrop</label><input class="form-control" id="backdrop" name="backdrop" type="file" accept="image/jpeg,image/png,image/webp"><p class="help-block">JPEG, PNG, or WebP · maximum 12 MB.</p></div>
+        </div>
       </div>
     </section>
     <div class="media-form-actions movie-form-actions"><button class="btn btn-primary btn-lg" type="submit"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> {% if movie %}Save changes{% else %}Add movie{% endif %}</button><a class="btn btn-default btn-lg" href="{{ url_for('movies.detail', movie_id=movie.id) if movie else url_for('movies.index') }}">Cancel</a></div>

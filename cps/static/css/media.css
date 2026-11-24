@@ -973,6 +973,58 @@
   line-height: 1.5;
 }
 
+.movie-backdrop-banner {
+  width: 100%;
+  height: clamp(180px, 28vw, 340px);
+  margin-bottom: 24px;
+  border-radius: 20px;
+  background-size: cover;
+  background-position: center 25%;
+  border: 1px solid var(--media-border);
+  box-shadow: var(--media-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.movie-backdrop-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.1) 60%, transparent 100%);
+}
+
+.movie-tagline {
+  margin: 6px 0 10px;
+  font-size: clamp(15px, 1.8vw, 19px);
+  font-style: italic;
+  color: var(--media-muted);
+  line-height: 1.4;
+}
+
+.movie-collection {
+  margin: 4px 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--media-accent-strong);
+}
+
+.movie-collection .glyphicon {
+  margin-right: 6px;
+}
+
+.movie-trailer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.movie-artwork-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+
 .external-books-series {
   margin-bottom: 0;
 }
