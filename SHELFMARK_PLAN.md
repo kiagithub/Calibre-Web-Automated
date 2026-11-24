@@ -74,11 +74,25 @@ Phase 3 is implemented on the `shelfmark` branch:
 - Admin Request Policies page for per-user open-request limits and allowing/disabling requests.
 - Tests for policies, notification preferences, Hardcover sync deduplication, and library-link validation.
 
-Remaining Phase 3/4 follow-ups:
+## Implementation status — Phase 4 (2026-11-23)
 
-- Optional Audiobookshelf ownership provider (implemented).
+Phase 4 is implemented on the `shelfmark` branch:
+
+- Optional Audiobookshelf ownership check provider (`AUDIOBOOKSHELF_CHECK_ENABLED`, `AUDIOBOOKSHELF_URL`, `AUDIOBOOKSHELF_TOKEN`, `AUDIOBOOKSHELF_LIBRARY_IDS`).
+- Per-user catalog view defaults (`user.view_settings`) for combined books catalog.
+- Enriched Hardcover shelf sync with author contributions and deduplication.
+- Rich movie metadata expansion (`tagline`, `collection_name`, `vote_count`, `trailer_url`, `backdrop_filename`):
+  - Database schema migration and `Movie` model attributes.
+  - TMDB client extraction for YouTube trailer links, collections, vote counts, and backdrops.
+  - Local atomic backdrop artwork storage in `data/config/movie_backdrops/` and `/movies/<id>/backdrop` endpoint.
+  - Movie detail page backdrop hero banner, tagline, collection grouping, vote counts, and trailer link buttons.
+  - Manual form controls and custom backdrop image upload support.
+  - Serialization of rich movie metadata in the read-only Media API (`/api/media/movies`).
+
+Remaining follow-ups:
+
+- URL-persisted `owned` filter (`owned=hide|only|all`) and `search_by` selector for metadata search.
 - Apprise/multi-route notifications.
-- URL-persisted `owned` filter and `search_by` selector.
 - Custom post-fulfilment hooks, only if a concrete need appears.
 
 ---
