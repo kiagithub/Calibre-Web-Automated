@@ -283,13 +283,24 @@ class TestMovieRoutes:
         response = client.post("/movies/new", data={
             "title": "Arrival", "media_format": "4K UHD", "location": "Shelf A",
             "release_date": "2016-11-11", "personal_rating": "9", "is_watched": "on",
-        })
+            "tagline": "Why are they here?", "collection_name": "SciFi Classics",
+            "vote_count": "1500", "trailer_url": "https://www.youtube.com/watch?v=trailer123",
+            "backdrop": (BytesIO(JPEG), "backdrop.jpg"),
+        }, content_type="multipart/form-data")
         assert response.status_code == 302
         movie = db_session.query(Movie).one()
         assert movie.title == "Arrival"
         assert movie.media_format == "4K UHD"
         assert movie.is_watched
         assert movie.year == "2016"
+        assert movie.tagline == "Why are they here?"
+        assert movie.collection_name == "SciFi Classics"
+        assert movie.vote_count == 1500
+        assert movie.trailer_url == "https://www.youtube.com/watch?v=trailer123"
+        assert movie.backdrop_filename.endswith(".jpg")
+        backdrop_response = client.get(f"/movies/{movie.id}/backdrop")
+        assert backdrop_response.status_code == 200
+        assert backdrop_response.data == JPEG
 
         response = client.get("/movies/?q=Amy")
         assert response.get_json()["entries"] == []
@@ -299,21 +310,27 @@ class TestMovieRoutes:
         response = client.get("/movies/?format=DVD")
         assert response.get_json()["entries"] == []
 
+        backdrop_filename = movie.backdrop_filename
         response = client.post(f"/movies/{movie.id}/edit", data={
             "title": "Arrival", "media_format": "4K UHD", "location": "Shelf B",
             "personal_rating": "10", "poster": (BytesIO(JPEG), "poster.jpg"),
+            "tagline": "Updated tagline",
         }, content_type="multipart/form-data")
         assert response.status_code == 302
         assert movie.location == "Shelf B"
         assert movie.personal_rating == 10
+        assert movie.tagline == "Updated tagline"
         assert movie.poster_filename.endswith(".jpg")
         poster_response = client.get(f"/movies/{movie.id}/poster")
         assert poster_response.status_code == 200
         assert poster_response.data == JPEG
 
+        poster_filename = movie.poster_filename
         response = client.post(f"/movies/{movie.id}/delete")
         assert response.status_code == 302
         assert db_session.query(Movie).count() == 0
+        assert not (Path(routes._cover_directory()) / poster_filename).exists()
+        assert not (Path(routes._backdrop_directory()) / backdrop_filename).exists()
 
     def test_metadata_search_annotates_owned_when_requested(self, movie_app, monkeypatch):
         app, _session, _ = movie_app
@@ -367,6 +384,12 @@ class TestMovieRoutes:
     def test_invalid_form_does_not_create_movie(self, movie_app):
         app, db_session, _ = movie_app
         response = app.test_client().post("/movies/new", data={"title": "", "release_date": "not-a-date"})
+        assert response.status_code == 400
+        assert db_session.query(Movie).count() == 0
+
+        response = app.test_client().post("/movies/new", data={
+            "title": "Arrival", "media_format": "Blu-ray", "trailer_url": "javascript:alert(1)"
+        })
         assert response.status_code == 400
         assert db_session.query(Movie).count() == 0
 
@@ -512,8 +535,12 @@ class TestMovieRoutes:
         provider = SimpleNamespace(
             details=lambda tmdb_id: {
                 "tmdb_id": 329865, "title": "Arrival", "poster_url": "https://image.tmdb.org/t/p/w500/poster.jpg",
+                "tagline": "Why are they here?", "collection_name": "SciFi Classics",
+                "vote_count": 16420, "trailer_url": "https://www.youtube.com/watch?v=trailer456",
+                "backdrop_url": "https://image.tmdb.org/t/p/w1280/backdrop.jpg",
             },
             download_poster=lambda url: (JPEG, "jpg"),
+            download_backdrop=lambda url: (JPEG, "jpg"),
         )
         monkeypatch.setattr(routes, "_client", lambda: provider)
         real_commit = db_session.commit
@@ -532,6 +559,20 @@ class TestMovieRoutes:
         movie = db_session.query(Movie).one()
         assert movie.poster_filename
         assert (Path(routes._cover_directory()) / movie.poster_filename).read_bytes() == JPEG
+        assert movie.tagline == "Why are they here?"
+        assert movie.collection_name == "SciFi Classics"
+        assert movie.vote_count == 16420
+        assert movie.trailer_url == "https://www.youtube.com/watch?v=trailer456"
+        assert movie.backdrop_filename
+        assert (Path(routes._backdrop_directory()) / movie.backdrop_filename).read_bytes() == JPEG
+
+    def test_backdrop_route_404_when_no_backdrop(self, movie_app):
+        app, db_session, _ = movie_app
+        movie = Movie(title="Arrival", media_format="Blu-ray")
+        db_session.add(movie)
+        db_session.commit()
+        response = app.test_client().get(f"/movies/{movie.id}/backdrop")
+        assert response.status_code == 404
 
     def test_metadata_apply_commit_failure_restores_old_artwork(self, movie_app, monkeypatch):
         app, db_session, _ = movie_app

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from datetime import date, datetime, timezone
+from urllib.parse import urlparse
 
 from flask import (
     Blueprint,
@@ -26,7 +27,7 @@ from ..usermanagement import login_required_if_no_ano, user_login_required
 from ..wishlist import notifications as wishlist_notifications
 from ..wishlist import service as wishlist_service
 from ..wishlist.models import MediaRequest
-from .metadata import MAX_POSTER_BYTES, MovieMetadataError, TMDBClient
+from .metadata import MAX_BACKDROP_BYTES, MAX_POSTER_BYTES, MovieMetadataError, TMDBClient
 from .models import Movie
 from .query import filtered_movies
 
@@ -56,10 +57,14 @@ TEXT_FIELDS = {
     "edition": 200,
     "condition": 40,
     "notes": 10000,
+    "tagline": 500,
+    "collection_name": 200,
+    "trailer_url": 300,
 }
 METADATA_FIELDS = (
     "title", "original_title", "overview", "release_date", "runtime", "director",
     "cast_members", "genres", "content_rating", "tmdb_rating", "tmdb_id", "imdb_id",
+    "tagline", "collection_name", "vote_count", "trailer_url",
 )
 
 # Backwards-compatible names for callers that imported the movie decorators.
@@ -147,6 +152,13 @@ def _validated_form():
     values["runtime"] = _parse_int(request.form.get("runtime"), "Runtime", 1, 2000, errors)
     values["personal_rating"] = _parse_int(request.form.get("personal_rating"), "Personal rating", 0, 10, errors)
     values["tmdb_id"] = _parse_int(request.form.get("tmdb_id"), "TMDB ID", 1, 2147483647, errors)
+    vote_count = _parse_int(request.form.get("vote_count"), "Vote count", 0, 2147483647, errors)
+    values["vote_count"] = vote_count if vote_count is not None else 0
+    trailer = values.get("trailer_url", "").strip()
+    if trailer:
+        parsed_trailer = urlparse(trailer)
+        if parsed_trailer.scheme not in ("http", "https") or not parsed_trailer.netloc:
+            errors.append("Trailer URL must be a valid web URL.")
     values["is_watched"] = request.form.get("is_watched") == "on"
     return values, errors
 
@@ -154,8 +166,9 @@ def _validated_form():
 def _apply_values(movie, values):
     for field in TEXT_FIELDS:
         setattr(movie, field, values[field])
-    for field in ("release_date", "date_acquired", "runtime", "personal_rating", "tmdb_id", "is_watched"):
-        setattr(movie, field, values[field])
+    for field in ("release_date", "date_acquired", "runtime", "personal_rating", "tmdb_id", "is_watched", "vote_count"):
+        if field in values:
+            setattr(movie, field, values[field])
     movie.updated_at = datetime.now(timezone.utc)
 
 
@@ -259,6 +272,69 @@ def _download_poster(poster_url):
         return None, "Metadata was saved, but the poster could not be updated."
 
 
+def _backdrop_store():
+    return ArtworkStore(ub.app_DB_path, "movie_backdrops")
+
+
+def _backdrop_directory():
+    return _backdrop_store().root
+
+
+def _save_backdrop(movie, data, extension):
+    """Stage a backdrop and update the model; the caller owns the transaction."""
+    old_filename = movie.backdrop_filename
+    filename = _backdrop_store().stage(
+        data, extension, f"movie-backdrop-{movie.id}", max_bytes=MAX_BACKDROP_BYTES,
+    )
+    movie.backdrop_filename = filename
+    return old_filename, filename
+
+
+def _discard_staged_backdrop(filename):
+    if not filename:
+        return
+    try:
+        _backdrop_store().discard(filename)
+    except (OSError, ValueError) as exc:
+        log.warning("Could not remove uncommitted movie backdrop %s: %s", filename, exc)
+
+
+def _delete_backdrop_file(filename):
+    _backdrop_store().delete(filename)
+
+
+def _delete_backdrop_after_commit(filename, movie_id):
+    if not filename:
+        return
+    try:
+        _delete_backdrop_file(filename)
+    except (OSError, ValueError) as exc:
+        log.warning("Could not remove old backdrop for movie %s: %s", movie_id, exc)
+
+
+def _uploaded_backdrop(errors):
+    try:
+        backdrop = read_image_upload(request.files.get("backdrop"), max_bytes=MAX_BACKDROP_BYTES)
+    except ImageTooLargeError:
+        errors.append("Backdrop images must be 12 MB or smaller.")
+        return None
+    except InvalidImageError:
+        errors.append("Backdrop images must be JPEG, PNG, or WebP files.")
+        return None
+    return (backdrop.data, backdrop.extension) if backdrop else None
+
+
+def _download_backdrop(backdrop_url):
+    """Download backdrop before opening a database write transaction."""
+    if not backdrop_url:
+        return None, ""
+    try:
+        return _client().download_backdrop(backdrop_url), ""
+    except MovieMetadataError as exc:
+        log.warning("Could not download TMDB backdrop: %s", exc)
+        return None, "Metadata was saved, but the backdrop could not be updated."
+
+
 @movies.route("/")
 @login_required_if_no_ano
 def index():
@@ -303,6 +379,7 @@ def new():
     if request.method == "POST":
         values, errors = _validated_form()
         poster = _uploaded_poster(errors)
+        backdrop = _uploaded_backdrop(errors)
         if errors:
             return render_title_template("movies/form.html", title="Add Movie", page="movies",
                                          **_form_context(errors=errors, request_id=request_id)), 400
@@ -313,15 +390,24 @@ def new():
             return render_title_template("movies/form.html", title="Add Movie", page="movies",
                                          **_form_context(request_id=request_id)), 500
         staged_poster = ""
+        staged_backdrop = ""
         poster_warning = False
+        backdrop_warning = False
         if poster:
             try:
                 _, staged_poster = _save_poster(movie, *poster)
             except (OSError, ValueError) as exc:
                 log.warning("Could not store poster for new movie %s: %s", movie.id, exc)
                 poster_warning = True
+        if backdrop:
+            try:
+                _, staged_backdrop = _save_backdrop(movie, *backdrop)
+            except (OSError, ValueError) as exc:
+                log.warning("Could not store backdrop for new movie %s: %s", movie.id, exc)
+                backdrop_warning = True
         if not _commit():
             _discard_staged_poster(staged_poster)
+            _discard_staged_backdrop(staged_backdrop)
             return render_title_template("movies/form.html", title="Add Movie", page="movies",
                                          **_form_context(request_id=request_id)), 500
         if request_record is not None:
@@ -332,8 +418,8 @@ def new():
                 wishlist_notifications.notify_request("fulfilled", request_record)
             except wishlist_service.RequestError as exc:
                 log.warning("Could not fulfil wishlist request: %s", exc)
-        if poster_warning:
-            flash("The movie was saved, but its poster could not be stored.", "warning")
+        if poster_warning or backdrop_warning:
+            flash("The movie was saved, but some artwork could not be stored.", "warning")
         flash(f"Added {movie.title} to your movie library.", "success")
         return redirect(url_for("movies.detail", movie_id=movie.id))
     return render_title_template("movies/form.html", title="Add Movie", page="movies",
@@ -348,29 +434,42 @@ def edit(movie_id):
     if request.method == "POST":
         values, errors = _validated_form()
         poster = _uploaded_poster(errors)
+        backdrop = _uploaded_backdrop(errors)
         if errors:
             return render_title_template("movies/form.html", title=f"Edit {movie.title}", page="movies",
                                          **_form_context(movie, errors)), 400
         _apply_values(movie, values)
         old_poster = ""
         staged_poster = ""
+        old_backdrop = ""
+        staged_backdrop = ""
         if poster:
             try:
                 old_poster, staged_poster = _save_poster(movie, *poster)
             except (OSError, ValueError) as exc:
                 log.warning("Could not store poster for movie %s: %s", movie.id, exc)
                 errors.append("The poster could not be stored.")
+        if backdrop:
+            try:
+                old_backdrop, staged_backdrop = _save_backdrop(movie, *backdrop)
+            except (OSError, ValueError) as exc:
+                log.warning("Could not store backdrop for movie %s: %s", movie.id, exc)
+                errors.append("The backdrop could not be stored.")
         if errors:
             ub.session.rollback()
             _discard_staged_poster(staged_poster)
+            _discard_staged_backdrop(staged_backdrop)
             return render_title_template("movies/form.html", title=f"Edit {movie.title}", page="movies",
                                          **_form_context(movie, errors)), 400
         if _commit():
             if staged_poster and old_poster != staged_poster:
                 _delete_poster_after_commit(old_poster, movie.id)
+            if staged_backdrop and old_backdrop != staged_backdrop:
+                _delete_backdrop_after_commit(old_backdrop, movie.id)
             flash("Movie details updated.", "success")
             return redirect(url_for("movies.detail", movie_id=movie.id))
         _discard_staged_poster(staged_poster)
+        _discard_staged_backdrop(staged_backdrop)
         return render_title_template("movies/form.html", title=f"Edit {movie.title}", page="movies",
                                      **_form_context(movie)), 500
     return render_title_template("movies/form.html", title=f"Edit {movie.title}", page="movies",
@@ -384,9 +483,11 @@ def delete(movie_id):
     movie = _get_movie(movie_id)
     title = movie.title
     poster_filename = movie.poster_filename
+    backdrop_filename = movie.backdrop_filename
     ub.session.delete(movie)
     if _commit():
         _delete_poster_after_commit(poster_filename, movie_id)
+        _delete_backdrop_after_commit(backdrop_filename, movie_id)
         flash(f"Deleted {title} from your movie library.", "success")
     return redirect(url_for("movies.index"))
 
@@ -396,6 +497,15 @@ def delete(movie_id):
 def poster(movie_id):
     movie = _get_movie(movie_id)
     return serve_artwork(_cover_store(), movie.poster_filename)
+
+
+@movies.route("/<int:movie_id>/backdrop")
+@login_required_if_no_ano
+def backdrop(movie_id):
+    movie = _get_movie(movie_id)
+    if not movie.backdrop_filename:
+        abort(404)
+    return serve_artwork(_backdrop_store(), movie.backdrop_filename)
 
 
 @movies.route("/metadata/search", methods=["POST"])
@@ -435,6 +545,7 @@ def import_movie():
         flash(str(exc), "error")
         return redirect(url_for("movies.new"))
     poster, warning = _download_poster(metadata.get("poster_url"))
+    backdrop, backdrop_warning = _download_backdrop(metadata.get("backdrop_url"))
     movie = Movie(media_format=media_format, condition=condition,
                   location=request.form.get("location", "").strip()[:200])
     _apply_metadata(movie, metadata)
@@ -442,17 +553,26 @@ def import_movie():
     if not _flush():
         return redirect(url_for("movies.new"))
     staged_poster = ""
+    staged_backdrop = ""
     if poster:
         try:
             _old_poster, staged_poster = _save_poster(movie, *poster)
         except (OSError, ValueError) as exc:
             log.warning("Could not store poster for imported movie %s: %s", movie.id, exc)
             warning = "Metadata was saved, but the poster could not be updated."
+    if backdrop:
+        try:
+            _old_backdrop, staged_backdrop = _save_backdrop(movie, *backdrop)
+        except (OSError, ValueError) as exc:
+            log.warning("Could not store backdrop for imported movie %s: %s", movie.id, exc)
+            if not warning:
+                warning = "Metadata was saved, but the backdrop could not be updated."
     if not _commit():
         _discard_staged_poster(staged_poster)
+        _discard_staged_backdrop(staged_backdrop)
         return redirect(url_for("movies.new"))
-    if warning:
-        flash(warning, "warning")
+    if warning or backdrop_warning:
+        flash(warning or backdrop_warning, "warning")
     flash(f"Added {movie.title} with metadata from TMDB.", "success")
     return redirect(url_for("movies.edit", movie_id=movie.id))
 
@@ -468,22 +588,35 @@ def metadata_apply(movie_id):
         flash(str(exc), "error")
         return redirect(url_for("movies.edit", movie_id=movie.id))
     poster, warning = _download_poster(metadata.get("poster_url"))
+    backdrop, backdrop_warning = _download_backdrop(metadata.get("backdrop_url"))
     _apply_metadata(movie, metadata)
     old_poster = ""
     staged_poster = ""
+    old_backdrop = ""
+    staged_backdrop = ""
     if poster:
         try:
             old_poster, staged_poster = _save_poster(movie, *poster)
         except (OSError, ValueError) as exc:
             log.warning("Could not store updated poster for movie %s: %s", movie.id, exc)
             warning = "Metadata was saved, but the poster could not be updated."
+    if backdrop:
+        try:
+            old_backdrop, staged_backdrop = _save_backdrop(movie, *backdrop)
+        except (OSError, ValueError) as exc:
+            log.warning("Could not store updated backdrop for movie %s: %s", movie.id, exc)
+            if not warning:
+                warning = "Metadata was saved, but the backdrop could not be updated."
     if not _commit():
         _discard_staged_poster(staged_poster)
+        _discard_staged_backdrop(staged_backdrop)
         return redirect(url_for("movies.edit", movie_id=movie.id))
     if staged_poster and old_poster != staged_poster:
         _delete_poster_after_commit(old_poster, movie.id)
-    if warning:
-        flash(warning, "warning")
+    if staged_backdrop and old_backdrop != staged_backdrop:
+        _delete_backdrop_after_commit(old_backdrop, movie.id)
+    if warning or backdrop_warning:
+        flash(warning or backdrop_warning, "warning")
     else:
         flash("Movie metadata updated from TMDB. Physical-copy details were preserved.", "success")
     return redirect(url_for("movies.detail", movie_id=movie.id))
